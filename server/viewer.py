@@ -66,7 +66,7 @@ st.set_page_config(page_title="Photo measurements", layout="wide")
 st.title("Photo measurements")
 
 folder = Path(st.sidebar.text_input("Photo folder", str(DEFAULT_FOLDER)))
-paths = sorted(p for p in folder.iterdir() if p.suffix.lower() in PHOTO_TYPES) if folder.is_dir() else []
+paths = sorted(p for p in folder.rglob("*") if p.suffix.lower() in PHOTO_TYPES) if folder.is_dir() else []
 if not paths:
     st.warning(f"No photos found in {folder}")
     st.stop()
@@ -98,9 +98,9 @@ for path, preview, result in photos:
         continue
     st.divider()
     left, right = st.columns(2)
-    left.image(preview, caption=path.name)
+    left.image(preview, caption=str(path.relative_to(folder)))
     with right:
-        st.subheader(f"{path.name} · {view} · {mode}")
+        st.subheader(f"{path.relative_to(folder)} · {view} · {mode}")
         for warning in result["warnings"]:
             st.warning(warning["message"])
         for i, person in enumerate(result["people"]):
