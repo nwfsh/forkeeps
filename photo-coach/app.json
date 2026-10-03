@@ -33,7 +33,22 @@
           "imageWidth": 76
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Photo Coach uses the camera to coach you on your shot before you take it.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": "Photo Coach saves the photos you keep to your library."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
