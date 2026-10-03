@@ -1,10 +1,11 @@
 fastapi
 uvicorn
 python-multipart
-mediapipe
+mediapipe==0.10.14
 opencv-python
 numpy
 scikit-learn
 pandas
 jupyter
 supabase
+streamlit
