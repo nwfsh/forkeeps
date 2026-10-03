@@ -218,6 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+<<<<<<< HEAD
 
 # Python's lib/ rule above shouldn't swallow the app's source folder
 !photo-coach/src/lib/
+=======
+/data 
+>>>>>>> 10c4cdf9d21bd4bd388a4179f9cde1fa7ea24612
