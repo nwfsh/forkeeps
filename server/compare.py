@@ -53,8 +53,11 @@ def photo_paths(folder: Path) -> list[Path]:
 
 
 def photo_id(path: Path) -> str:
-    """The photo's path from the repo root, so choices still match if the folder setting changes."""
-    return os.path.relpath(path, REPO)
+    """The photo's path from the repo root, so choices still match if the folder setting changes.
+
+    Always with forward slashes, so picks match across Windows and Mac.
+    """
+    return Path(os.path.relpath(path, REPO)).as_posix()
 
 
 def pick(name: str, winner: str, loser: str, winner_probability) -> None:
@@ -225,7 +228,7 @@ def show_results() -> None:
         st.info("**Likely pattern.** A few more picks would firm it up.")
     else:
         st.warning("**No clear pattern yet.** Your picks may depend on things this can't measure, "
-                   "like lighting, outfit or background. Treat these as rough.")
+                   "like outfit, background or setting. Treat these as rough.")
 
     rows = pd.DataFrame(ranker.priorities())
     saved = save_weights(name, count, sure)

@@ -37,7 +37,8 @@ def load(folder: Path) -> dict:
     for path in sorted(p for p in folder.rglob("*") if p.suffix.lower() in PHOTO_TYPES):
         preview, features, flags = analyze_photo(str(path), vision.code_version())
         if not flags:
-            photos[os.path.relpath(path, REPO)] = (preview, features)
+            # Forward slashes on every OS, to match the saved picks.
+            photos[Path(os.path.relpath(path, REPO)).as_posix()] = (preview, features)
     return photos
 
 

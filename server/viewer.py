@@ -145,6 +145,9 @@ for path, preview, result in photos:
         for i, (face, closeup) in enumerate(zip(result["faces"], closeups)):
             st.markdown(f"**Face {i + 1}**: {face.get('mode')}" if len(result["faces"]) > 1 else "**Face**")
             show_table({**face.get("measurements", {}), "cut_off": face["cut_off"]})
+            if face.get("lighting"):
+                with st.expander("Lighting and contour"):
+                    show_table(face["lighting"])
             st.image(closeup, caption=f"All {len(face['landmarks'])} face points; outlines: "
                      + ", ".join(vision.LANDMARK_REGIONS))
             by_region = {}

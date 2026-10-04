@@ -38,7 +38,17 @@ FEATURES = {
     "hand_raised": "A hand raised to the hair or head",
     "left_side": "Left side of the face toward the camera",
     "chin_up": "Chin up",
+    "bright_face": "Brightly lit face",
+    "light_contrast": "Strong light and shadow on the face",
+    "contour": "One side of the face lit more than the other (contour)",
+    "under_eye_shadow": "Shadows under the eyes",
+    "top_light": "Light from above",
+    "backlit": "Background brighter than the face",
+    "blown_out": "Blown-out highlights on the skin",
+    "warm_light": "Warm-coloured light",
 }
+LIGHTING_FEATURES = ("bright_face", "light_contrast", "contour", "under_eye_shadow", "top_light",
+                     "backlit", "blown_out", "warm_light")
 
 
 
@@ -65,6 +75,7 @@ REGIONS = {
     "clean_crop": "Framing", "looking_room": "Framing", "body_turned": "Body angle",
     "facing_camera": "Body angle", "upright": "Posture", "long_neck": "Posture",
     "arms_away": "Posture", "hand_raised": "Posture",
+    **dict.fromkeys(LIGHTING_FEATURES, "Lighting"),
     **{f"expr_{name}": expression_region(name) for name in EXPRESSIONS},
 }
 # Features with a direction rather than an amount: what a positive and a negative weight prefer.
@@ -117,6 +128,8 @@ def photo_features(result: dict) -> dict[str, Optional[float]]:
     m = face.get("measurements", {}) if face else {}
     expressions = face.get("expressions", {}) if face else {}
     pose = face.get("pose") if face else None
+    # Older results have no lighting; those photos count as average on every lighting feature.
+    light = face.get("lighting", {}) if face else {}
     person = result["people"][0] if result["people"] else None
     # Posture fields are newer than the rest, so results without them still work.
     body = person or {}
@@ -147,6 +160,15 @@ def photo_features(result: dict) -> dict[str, Optional[float]]:
         # the person's left cheek; negative pitch is chin up. Checked on our own photos.
         "left_side": None if pose is None else -pose["yaw"] / QUARTER_TURN,
         "chin_up": None if pose is None else -pose["pitch"] / QUARTER_TURN,
+        "bright_face": light.get("brightness"),
+        "light_contrast": light.get("contrast"),
+        # Which side is lit mostly follows which way the head is turned, so only the amount counts.
+        "contour": None if light.get("contour") is None else abs(light["contour"]),
+        "under_eye_shadow": light.get("under_eye_shadow"),
+        "top_light": light.get("top_light"),
+        "backlit": light.get("backlight"),
+        "blown_out": light.get("blown_out"),
+        "warm_light": light.get("warmth"),
     }
     features.update({f"expr_{name}": expressions.get(name) for name in EXPRESSIONS})
     return features

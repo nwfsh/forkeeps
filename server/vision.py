@@ -84,6 +84,26 @@ LANDMARK_REGIONS = {
     "Mouth": mesh.FACEMESH_LIPS,
 }
 FACE_MESH = mesh.FACEMESH_TESSELATION
+# Face points that light is sampled around: mid-cheeks (image left, image right), just under
+# each eye, the forehead and the chin. Checked by drawing them on our own photos.
+CHEEK_POINTS = (205, 425)
+UNDER_EYE_POINTS = (230, 450)
+FOREHEAD_POINT, CHIN_POINT, NOSE_TIP_POINT = 151, 199, 4
+# Light is averaged over a circle this fraction of the face height around each point.
+LIGHT_PATCH = 0.06
+# Backlight compares the face with everything outside a box this many face widths and heights
+# around it; closer in, hair dominates and reads as a dark background.
+BACKGROUND_CLEARANCE = 2.5
+# Brightness (0-1, perceptual) above which a face pixel counts as blown out.
+BLOWN_OUT = 0.96
+# Lighting warnings. Starting guesses: our photos are all evenly lit (faces 0.64-0.79 bright,
+# contour within ±0.1, under-eye shadow at most 0.19, blown out at most 1%, background never
+# more than 0.02 brighter than the face), so these sit well past anything we've seen.
+TOO_DARK = 0.45
+BACKLIT = 0.15
+TOO_MUCH_BLOWN_OUT = 0.05
+HARSH_SIDE_SHADOW = 0.2
+DARK_UNDER_EYES = 0.25
 # Reasons a photo's measurements can't be trusted, so it shouldn't be used to learn preferences.
 RED_FLAGS = {
     "no_person": "No one in the photo",
@@ -391,6 +411,7 @@ def analyze(rgb: np.ndarray) -> dict:
             "cut_off": x0 < EDGE_MARGIN or y0 < EDGE_MARGIN
             or x1 > 1 - EDGE_MARGIN or y1 > 1 - EDGE_MARGIN,
             "landmarks": found["landmarks"],
+            "lighting": lighting(rgb, found["landmarks"]),
         }
         if found["matrix"] is not None:
             face["pose"] = head_pose(found["matrix"])
@@ -451,6 +472,66 @@ def sharpness(rgb: np.ndarray, bbox: dict) -> float:
     return round(float(cv2.Laplacian(gray, cv2.CV_64F).var()), 1)
 
 
+def lighting(rgb: np.ndarray, landmarks: list) -> dict:
+    """How the light falls on a face: brightness, contour (one side darker than the other),
+    shadows under the eyes, light from above, backlight, blown-out skin and warmth.
+
+    Brightness values are perceptual lightness from 0 (black) to 1 (white), so differences
+    read the same in dark and bright photos.
+    """
+    height, width = rgb.shape[:2]
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)
+    lightness = lab[:, :, 0].astype(np.float32) / 255
+    points = np.array([[x * width, y * height] for x, y, _ in landmarks], dtype=np.float32)
+
+    face = np.zeros((height, width), np.uint8)
+    cv2.fillConvexPoly(face, cv2.convexHull(points).astype(np.int32), 1)
+    face = face.astype(bool)
+    if not face.any():
+        return {}
+    face_light = lightness[face]
+
+    # Split the face down the nose: positive contour means the image-right side is lit.
+    columns = np.arange(width)[None, :]
+    nose_x = points[NOSE_TIP_POINT][0]
+    left = lightness[face & (columns < nose_x)]
+    right = lightness[face & (columns >= nose_x)]
+    contour = float(np.mean(right) - np.mean(left)) if left.size and right.size else 0.0
+
+    x0, y0 = points.min(axis=0)
+    x1, y1 = points.max(axis=0)
+    radius = max(2, int((y1 - y0) * LIGHT_PATCH))
+
+    def patch(*indices: int) -> float:
+        """Mean lightness in small circles around the given face points."""
+        mask = np.zeros((height, width), np.uint8)
+        for i in indices:
+            cv2.circle(mask, (int(points[i][0]), int(points[i][1])), radius, 1, -1)
+        return float(np.mean(lightness[mask.astype(bool)]))
+
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    half_w, half_h = (x1 - x0) * BACKGROUND_CLEARANCE / 2, (y1 - y0) * BACKGROUND_CLEARANCE / 2
+    surroundings = np.ones((height, width), bool)
+    surroundings[max(0, int(cy - half_h)):min(height, int(cy + half_h)),
+                 max(0, int(cx - half_w)):min(width, int(cx + half_w))] = False
+    # A close-up leaves no background to compare with.
+    background = float(np.median(lightness[surroundings])) if surroundings.mean() > 0.1 else None
+    brightness = float(np.median(face_light))
+
+    return {
+        "brightness": round(brightness, 3),
+        # Spread of light across the face; flat light is low, dramatic light is high.
+        "contrast": round(float(np.std(face_light)), 3),
+        "contour": round(contour, 3),
+        "under_eye_shadow": round(patch(*CHEEK_POINTS) - patch(*UNDER_EYE_POINTS), 3),
+        "top_light": round(patch(FOREHEAD_POINT) - patch(CHIN_POINT), 3),
+        "backlight": None if background is None else round(background - brightness, 3),
+        "blown_out": round(float(np.mean(face_light > BLOWN_OUT)), 3),
+        # LAB's b channel: above 0 is yellow/warm light, below is blue/cool.
+        "warmth": round(float(np.mean(lab[:, :, 2][face])) / 128 - 1, 3),
+    }
+
+
 def detect_mode(scores: dict, measurements: dict) -> str:
     """Smiling, serious, eyes closed or goofy, from a single frame."""
     if min(scores["eyeBlinkLeft"], scores["eyeBlinkRight"]) > EYES_CLOSED:
@@ -495,6 +576,14 @@ def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
         who = "Someone is" if len(faces) > 1 else "You're"
         warnings.append({"code": "cut_off", "message": f"{who} cut off on the {side}"})
 
+    light = max(faces, key=lambda f: f["bbox"]["h"]).get("lighting", {}) if faces else {}
+    if (light.get("backlight") or 0) > BACKLIT:
+        warnings.append({"code": "backlit", "message": "The light is behind you: turn to face it"})
+    elif light.get("brightness", 1) < TOO_DARK:
+        warnings.append({"code": "too_dark", "message": "Your face is too dark: turn toward the light"})
+    if light.get("blown_out", 0) > TOO_MUCH_BLOWN_OUT:
+        warnings.append({"code": "blown_out", "message": "Too much direct light on your face: find some shade"})
+
     if len(people) == 1:
         person = people[0]
         if person["cut_at_joint"]:
@@ -507,6 +596,15 @@ def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
     # No "move closer": waist-up and full-body shots are deliberate, so a small face isn't a mistake.
     if len(faces) == 1 and faces[0]["bbox"]["h"] > TOO_CLOSE:
         warnings.append({"code": "too_close", "message": "Step back a little"})
+
+    # Softer lighting advice comes last: a shadowed side can be a deliberate contour.
+    if abs(light.get("contour", 0)) > HARSH_SIDE_SHADOW:
+        lit = "right" if light["contour"] > 0 else "left"
+        warnings.append({"code": "side_shadow",
+                         "message": f"Half your face is in shadow: turn a little toward the light on the {lit}"})
+    if light.get("under_eye_shadow", 0) > DARK_UNDER_EYES:
+        warnings.append({"code": "under_eye_shadow",
+                         "message": "Overhead light is shadowing your eyes: lift your chin or face a window"})
     return warnings
 
 

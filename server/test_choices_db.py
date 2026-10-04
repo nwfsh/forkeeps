@@ -68,3 +68,8 @@ def test_weights_keep_history_but_skip_repeats():
     history = choices_db.weights_history("salma")
     assert [(h["picks"], h["weights"]["smile"]) for h in history] == [(10, 1.0), (12, 0.8)]
     assert choices_db.weights_history("sarah") == []
+
+
+def test_windows_paths_match_mac_paths():
+    choices_db.add("sarah", "data\\training-recognition\\sarah\\a.jpg", "data/training-recognition/sarah/b.jpg", None)
+    assert choices_db.load("sarah")[0]["winner"] == "data/training-recognition/sarah/a.jpg"

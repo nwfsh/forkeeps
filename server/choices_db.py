@@ -59,9 +59,14 @@ def connect(path: Path = None) -> sqlite3.Connection:
     return conn
 
 
+def photo_path(path: str) -> str:
+    """A photo path with forward slashes, so picks made on Windows and on a Mac match."""
+    return path.replace("\\", "/")
+
+
 def as_choice(row: sqlite3.Row) -> dict:
     agreed = row["model_agreed"]
-    return {"winner": row["winner"], "loser": row["loser"],
+    return {"winner": photo_path(row["winner"]), "loser": photo_path(row["loser"]),
             "model_agreed": None if agreed is None else bool(agreed), "at": row["at"]}
 
 
@@ -76,7 +81,8 @@ def add(name: str, winner: str, loser: str, model_agreed: Optional[bool], at: st
     at = at or datetime.now(timezone.utc).isoformat(timespec="seconds")
     with closing(connect()) as conn, conn:
         conn.execute("INSERT OR IGNORE INTO choices (person, winner, loser, model_agreed, at) "
-                     "VALUES (?, ?, ?, ?, ?)", (person_key(name), winner, loser, model_agreed, at))
+                     "VALUES (?, ?, ?, ?, ?)",
+                     (person_key(name), photo_path(winner), photo_path(loser), model_agreed, at))
 
 
 def remove_last(name: str) -> Optional[dict]:
