@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { Analysis } from '@/lib/server';
 
@@ -12,8 +12,9 @@ type Props = {
 };
 
 /**
- * Draws a box over each detected face. The preview fills the screen ("cover"),
- * so the photo is scaled up and its overflow cropped; boxes get the same transform.
+ * Draws a box over each detected face, with the person's name above it when the server
+ * recognises them. The preview fills the screen ("cover"), so the photo is scaled up and
+ * its overflow cropped; boxes get the same transform.
  */
 export function FaceOverlay({ analysis, viewWidth, viewHeight, mirrored }: Props) {
   const scale = Math.max(viewWidth / analysis.width, viewHeight / analysis.height);
@@ -36,8 +37,13 @@ export function FaceOverlay({ analysis, viewWidth, viewHeight, mirrored }: Props
                 width: face.bbox.w * analysis.width * scale,
                 height: face.bbox.h * analysis.height * scale,
               },
-            ]}
-          />
+            ]}>
+            {face.name && (
+              <Text style={[styles.name, face.cut_off && styles.nameCutOff]} numberOfLines={1}>
+                {face.name}
+              </Text>
+            )}
+          </View>
         );
       })}
     </View>
@@ -53,5 +59,24 @@ const styles = StyleSheet.create({
   },
   cutOff: {
     borderColor: '#F87171',
+  },
+  name: {
+    position: 'absolute',
+    bottom: '100%',
+    left: -2,
+    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#4ADE80',
+    color: '#052e16',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  nameCutOff: {
+    backgroundColor: '#F87171',
+    color: '#450a0a',
   },
 });

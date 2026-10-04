@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { File } from 'expo-file-system';
 
 export type FaceBox = { x: number; y: number; w: number; h: number };
 
@@ -7,6 +8,8 @@ export type Face = {
   bbox: FaceBox;
   cut_off: boolean;
   pose?: { yaw: number; pitch: number; roll: number };
+  /** Who this is, if they've been enrolled on the server (server/recognize.py). */
+  name?: string | null;
 };
 
 export type Warning = { code: string; message: string };
@@ -36,8 +39,9 @@ export const SERVER_URL = resolveServerUrl();
 
 export async function analyzeFrame(uri: string, signal?: AbortSignal): Promise<Analysis> {
   const body = new FormData();
-  // React Native's FormData accepts a { uri, name, type } file descriptor.
-  body.append('image', { uri, name: 'frame.jpg', type: 'image/jpeg' } as unknown as Blob);
+  // The global fetch is expo/fetch, which can't upload React Native's { uri, name, type }
+  // descriptors; it needs a Blob, which expo-file-system's File is.
+  body.append('image', new File(uri));
   const res = await fetch(`${SERVER_URL}/analyze`, { method: 'POST', body, signal });
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
   return res.json();

@@ -68,7 +68,8 @@ export default function CameraScreen() {
     setFacing((f) => (f === 'back' ? 'front' : 'back'));
   }
 
-  const tip = error ? `Can't reach ${SERVER_URL}` : analysis?.warnings[0]?.message;
+  // The error can come from taking the snapshot as well as from the network, so show it.
+  const tip = error ? `Can't reach ${SERVER_URL} (${error})` : analysis?.warnings[0]?.message;
 
   return (
     <View
@@ -76,6 +77,9 @@ export default function CameraScreen() {
       onLayout={(e) => setLayout(e.nativeEvent.layout)}>
       {isFocused && (
         <CameraView
+          // A new camera per side: onCameraReady only fires once per mount, and the frame
+          // loop waits for it again after a flip.
+          key={facing}
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing={facing}
