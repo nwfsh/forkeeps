@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { OnboardingProvider, useOnboarding } from '@/components/onboarding-provider';
@@ -11,14 +12,17 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <OnboardingProvider>
-        <PhotosProvider>
-          <AnimatedSplashOverlay />
-          <RootStack />
-        </PhotosProvider>
-      </OnboardingProvider>
-    </ThemeProvider>
+    // Swipeable cards (photo review) need gestures handled from the root.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <OnboardingProvider>
+          <PhotosProvider>
+            <AnimatedSplashOverlay />
+            <RootStack />
+          </PhotosProvider>
+        </OnboardingProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -32,6 +36,7 @@ function RootStack() {
       </Stack.Protected>
       <Stack.Protected guard={finished}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="review" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
     </Stack>
   );

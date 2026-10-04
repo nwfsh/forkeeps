@@ -1,10 +1,15 @@
 import time
+from typing import Optional
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
+import choices_db
 import personas
+import ranker
 import recognize
+import retrain
 import vision
 
 # Camera frames are small and faces in them are big, so the detector can work at a small
@@ -54,6 +59,46 @@ def add_names(rgb, faces: list[dict]) -> None:
         best = max(faces, key=lambda f: vision.overlap(box(f["bbox"]), box(person["bbox"])))
         if vision.overlap(box(best["bbox"]), box(person["bbox"])) >= SAME_FACE:
             best["name"] = person["name"]
+
+
+class Verdict(BaseModel):
+    person: str
+    photo: str
+    verdict: str
+    # What /analyze said about the photo when it was taken, or None if it never got an answer.
+    analysis: Optional[dict] = None
+
+
+@app.post("/verdicts")
+def save_verdict(body: Verdict):
+    """Keep or remove from the app's photo review. Only the photo's features are stored."""
+    features = None
+    if body.analysis is not None:
+        try:
+            features = ranker.photo_features(body.analysis)
+        except (KeyError, TypeError) as e:
+            raise HTTPException(status_code=400, detail=f"analysis isn't a /analyze result: {e}")
+    try:
+        choices_db.save_verdict(body.person, body.photo, body.verdict, features)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"saved": True, "measured": features is not None}
+
+
+@app.get("/model/{person}")
+def model_status(person: str):
+    """Reviewed-photo counts, and whether enough are new to offer retraining."""
+    return retrain.status(person)
+
+
+@app.post("/model/{person}/retrain")
+def retrain_model(person: str):
+    """Retrain this person's taste model from every photo they've kept or removed."""
+    try:
+        summary = retrain.retrain(person)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {**summary, "status": retrain.status(person)}
 
 
 @app.get("/personas")

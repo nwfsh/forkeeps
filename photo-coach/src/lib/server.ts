@@ -42,6 +42,58 @@ function resolveServerUrl() {
 
 export const SERVER_URL = resolveServerUrl();
 
+/**
+ * Whose taste the review swipes train, in the server's database. There are no accounts yet,
+ * so each phone is one person; set EXPO_PUBLIC_PERSON to tell phones apart.
+ */
+export const PERSON = process.env.EXPO_PUBLIC_PERSON ?? 'me';
+
+export type Verdict = 'keep' | 'remove';
+
+/** Records keep or remove for one photo. Only the analysis goes to the server, never the image. */
+export async function sendVerdict(photoId: string, verdict: Verdict, analysis: Analysis | null) {
+  const res = await fetch(`${SERVER_URL}/verdicts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ person: PERSON, photo: photoId, verdict, analysis }),
+  });
+  if (!res.ok) throw new Error(`Server returned ${res.status}`);
+}
+
+/** Review counts from GET /model/{person}; `ready` once enough photos are new since training. */
+export type ModelStatus = {
+  reviewed: number;
+  kept: number;
+  removed: number;
+  new_since_training: number;
+  retrain_after: number;
+  ready: boolean;
+  last_trained: string | null;
+};
+
+export type RetrainResult = {
+  reviewed: number;
+  confidence: number;
+  /** Most influential first, worded like "Smiling, more of it". */
+  priorities: { feature: string; prefers: string; share: number }[];
+};
+
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? `Server returned ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchModelStatus(): Promise<ModelStatus> {
+  return json(await fetch(`${SERVER_URL}/model/${encodeURIComponent(PERSON)}`));
+}
+
+export async function retrainModel(): Promise<RetrainResult> {
+  return json(await fetch(`${SERVER_URL}/model/${encodeURIComponent(PERSON)}/retrain`, { method: 'POST' }));
+}
+
 export async function analyzeFrame(uri: string, signal?: AbortSignal): Promise<Analysis> {
   const body = new FormData();
   // The global fetch is expo/fetch, which can't upload React Native's { uri, name, type }

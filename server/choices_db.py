@@ -2,6 +2,7 @@
 
 Replaces the per-person JSON files in preferences/; compare.py reads and writes here. Each
 time someone's learned weights change, a new row is kept, so their history can be compared.
+The app's keep/remove swipes on its own photos are kept here too (see save_verdict).
 
 Run from server/:  python choices_db.py import    copy preferences/*.json in (safe to repeat)
 """
@@ -42,7 +43,21 @@ CREATE TABLE IF NOT EXISTS weights (
     data       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS weights_by_person ON weights (person, id);
+-- Keep or remove, swiped on one photo at a time in the app's photo review. The image itself
+-- stays on the phone (or is deleted there); only its ranker features are kept here.
+CREATE TABLE IF NOT EXISTS verdicts (
+    id       INTEGER PRIMARY KEY,
+    person   TEXT NOT NULL,
+    -- The app's id for the photo, e.g. its capture time.
+    photo    TEXT NOT NULL,
+    verdict  TEXT NOT NULL CHECK (verdict IN ('keep', 'remove')),
+    -- ranker.photo_features() as JSON; NULL when the app had no analysis for the photo.
+    features TEXT,
+    at       TEXT NOT NULL,
+    UNIQUE (person, photo)
+);
 """
+VERDICTS = ("keep", "remove")
 
 
 def person_key(name: str) -> str:
@@ -125,6 +140,40 @@ def weights_history(name: str) -> list[dict]:
         rows = conn.execute("SELECT * FROM weights WHERE person = ? ORDER BY id", (person_key(name),))
         return [{"saved_at": r["saved_at"], "picks": r["picks"], "confidence": r["confidence"],
                  **json.loads(r["data"])} for r in rows]
+
+
+def save_verdict(name: str, photo: str, verdict: str, features: Optional[dict]) -> None:
+    """Record keep or remove for one photo. Reviewing the same photo again replaces the old verdict."""
+    if verdict not in VERDICTS:
+        raise ValueError(f"verdict must be one of {VERDICTS}")
+    with closing(connect()) as conn, conn:
+        conn.execute(
+            "INSERT INTO verdicts (person, photo, verdict, features, at) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (person, photo) DO UPDATE SET verdict = excluded.verdict, "
+            "features = COALESCE(excluded.features, verdicts.features), at = excluded.at",
+            (person_key(name), photo, verdict, None if features is None else json.dumps(features),
+             datetime.now(timezone.utc).isoformat(timespec="seconds")))
+
+
+def load_verdicts(name: str) -> list[dict]:
+    """Someone's verdicts, oldest first, with features decoded (None if unknown)."""
+    with closing(connect()) as conn:
+        rows = conn.execute("SELECT * FROM verdicts WHERE person = ? ORDER BY id", (person_key(name),))
+        return [{"photo": r["photo"], "verdict": r["verdict"], "at": r["at"],
+                 "features": None if r["features"] is None else json.loads(r["features"])} for r in rows]
+
+
+def verdict_pairs(name: str) -> tuple[dict, list[tuple[str, str]]]:
+    """Verdicts as ranker input: features by photo, and a (kept, removed) pick for every pairing.
+
+    Keeping one photo and removing another says the same as picking the first over the
+    second, so these train a Ranker exactly like the "pick the better photo" choices.
+    """
+    verdicts = [v for v in load_verdicts(name) if v["features"] is not None]
+    features = {f"app/{v['photo']}": v["features"] for v in verdicts}
+    kept = [f"app/{v['photo']}" for v in verdicts if v["verdict"] == "keep"]
+    removed = [f"app/{v['photo']}" for v in verdicts if v["verdict"] == "remove"]
+    return features, [(k, r) for k in kept for r in removed]
 
 
 def import_json(folder: Path = PREFERENCES) -> dict[str, int]:
