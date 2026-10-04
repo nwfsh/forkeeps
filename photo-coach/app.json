@@ -48,6 +48,14 @@
           "photosPermission": false,
           "savePhotosPermission": "Photo Coach saves the photos you keep to your library."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Photo Coach reads the photo of your makeup look you pick, to remind you when it fades.",
+          "cameraPermission": "Photo Coach uses the camera to coach you on your shot before you take it.",
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

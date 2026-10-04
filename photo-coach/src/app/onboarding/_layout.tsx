@@ -15,6 +15,7 @@ const PAGES = [
   '/onboarding/compare',
   '/onboarding/results',
   '/onboarding/voice',
+  '/onboarding/makeup',
 ] as const;
 
 // Made-up results so the profile page has something to show when skipped to.

@@ -11,7 +11,7 @@ import {
 } from '@/components/onboarding-style';
 
 const STEPS = [
-  { title: 'Film yourself', body: 'Twenty seconds, however you like.' },
+  { title: 'Film yourself', body: 'Fifteen seconds, however you like.' },
   {
     title: 'Pick your favourites',
     body: 'We show you two moments at a time. Tap the one you like more.',

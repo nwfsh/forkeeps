@@ -38,6 +38,7 @@ function RootStack() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="review" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="angles" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="makeup" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="tune" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
     </Stack>

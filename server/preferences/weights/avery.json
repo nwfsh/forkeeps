@@ -1,13 +1,13 @@
 {
  "person": "avery",
- "updated": "2026-10-04T12:11:29+00:00",
- "picks": 334,
+ "updated": "2026-10-04T16:34:05+00:00",
+ "picks": 426,
  "confidence": 1.0,
  "source": "review",
  "regions": {
-  "Eyes": 0.06150474703052924,
-  "Mouth": 0.2882969690712288,
-  "Head angle": 0.6501982838982421,
+  "Eyes": 0.09500370600150589,
+  "Mouth": 0.30806540728688114,
+  "Head angle": 0.5969308867116129,
   "Photo quality": 0.0,
   "Framing": 0.0,
   "Body angle": 0.0,
@@ -32,77 +32,77 @@
    "feature": "chin_up",
    "region": "Head angle",
    "prefers": "Chin down",
-   "share": 0.46290556690243284,
-   "weight": -1.2392303070659598
-  },
-  {
-   "feature": "teeth_shown",
-   "region": "Mouth",
-   "prefers": "Teeth showing, less of it",
-   "share": 0.19742383520513712,
-   "weight": -0.5285172990260613
-  },
-  {
-   "feature": "chin_up_curve",
-   "region": "Head angle",
-   "prefers": "Chin angle sweet spot: one extreme or the other",
-   "share": 0.17372016783957814,
-   "weight": 0.4650609375384011
-  },
-  {
-   "feature": "left_side",
-   "region": "Head angle",
-   "prefers": "Your left side toward the camera",
-   "share": 0.08545347207697798,
-   "weight": 0.2287648713114867
-  },
-  {
-   "feature": "eye_contact",
-   "region": "Eyes",
-   "prefers": "Looking at the camera, less of it",
-   "share": 0.04647233797652658,
-   "weight": -0.12440967181728103
+   "share": 0.4198828594732297,
+   "weight": -1.2015887640535772
   },
   {
    "feature": "smile",
    "region": "Mouth",
    "prefers": "Smiling, less of it",
-   "share": 0.033778470847123425,
-   "weight": -0.09042730913824173
+   "share": 0.14618064123061486,
+   "weight": -0.4183286172843945
+  },
+  {
+   "feature": "chin_up_curve",
+   "region": "Head angle",
+   "prefers": "Chin angle sweet spot: one extreme or the other",
+   "share": 0.12866641724897268,
+   "weight": 0.36820774601601
+  },
+  {
+   "feature": "teeth_shown",
+   "region": "Mouth",
+   "prefers": "Teeth showing, less of it",
+   "share": 0.12554210846241184,
+   "weight": -0.35926683726332787
+  },
+  {
+   "feature": "left_side",
+   "region": "Head angle",
+   "prefers": "Your left side toward the camera",
+   "share": 0.08105707142387596,
+   "weight": 0.23196294888581268
+  },
+  {
+   "feature": "eye_contact",
+   "region": "Eyes",
+   "prefers": "Looking at the camera, less of it",
+   "share": 0.07764275205112894,
+   "weight": -0.2221921099419933
   },
   {
    "feature": "left_side_curve",
    "region": "Head angle",
    "prefers": "Face turn sweet spot: a best angle in between",
-   "share": 0.0002461491522240446,
-   "weight": -0.0006589583519934665
+   "share": 0.021028150109766067,
+   "weight": -0.06017675723278209
   }
  ],
  "weights": {
-  "eye_contact": -0.12440967181728103,
-  "smile": -0.09042730913824173,
-  "teeth_shown": -0.5285172990260613,
-  "chin_up": -1.2392303070659598,
-  "left_side": 0.2287648713114867,
-  "chin_up_curve": 0.4650609375384011,
-  "left_side_curve": -0.0006589583519934665
+  "eye_contact": -0.2221921099419933,
+  "smile": -0.4183286172843945,
+  "teeth_shown": -0.35926683726332787,
+  "chin_up": -1.2015887640535772,
+  "left_side": 0.23196294888581268,
+  "chin_up_curve": 0.36820774601601,
+  "left_side_curve": -0.06017675723278209
  },
  "mean": {
-  "eye_contact": 0.5389775280898875,
-  "smile": 0.19516483516483518,
-  "teeth_shown": 0.13305952380952385,
-  "chin_up": -0.04609279609279609,
-  "left_side": 0.010769230769230774,
-  "chin_up_curve": 0.030661524894858214,
-  "left_side_curve": 0.03769339302672638
+  "eye_contact": 0.5519136690647485,
+  "smile": 0.28081560283687945,
+  "teeth_shown": 0.1555,
+  "chin_up": -0.07065405831363279,
+  "left_side": 0.014562647754137119,
+  "chin_up_curve": 0.030772384204535503,
+  "left_side_curve": 0.0340663339462394
  },
  "std": {
-  "eye_contact": 0.19254242068873076,
-  "smile": 0.303482072672776,
-  "teeth_shown": 0.17751434222341397,
-  "chin_up": 0.16892891713145544,
-  "left_side": 0.19384895329963844,
-  "chin_up_curve": 0.02892515584199044,
-  "left_side_curve": 0.061070721522468084
+  "eye_contact": 0.17989083348361595,
+  "smile": 0.35267077454411266,
+  "teeth_shown": 0.18593986827838893,
+  "chin_up": 0.16056272371988864,
+  "left_side": 0.18399528047378913,
+  "chin_up_curve": 0.03051283847158848,
+  "left_side_curve": 0.05639370838026751
  }
 }

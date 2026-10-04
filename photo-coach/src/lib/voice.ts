@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
-import { SERVER_URL } from '@/lib/server';
+import { currentPerson, SERVER_URL } from '@/lib/server';
 
 export type Persona = {
   id: string;
@@ -16,8 +16,16 @@ export const GOOD_CLIP = 'looks_good';
 const choiceFile = new File(Paths.document, 'voice.json');
 const clipsDir = new Directory(Paths.cache, 'voices');
 
+/** The clip of the voices calling this profile by name (server/personas.name_clip). */
+export function nameClip(): string {
+  return `name_${currentPerson().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'me'}`;
+}
+
 export async function fetchPersonas(signal?: AbortSignal): Promise<Persona[]> {
-  const res = await fetch(`${SERVER_URL}/personas`, { signal });
+  // With the profile, each voice's clips include it saying their name (recorded on first ask).
+  const res = await fetch(`${SERVER_URL}/personas?person=${encodeURIComponent(currentPerson())}`, {
+    signal,
+  });
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
   return res.json();
 }

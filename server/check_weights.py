@@ -16,6 +16,7 @@ import streamlit as st
 
 import choices_db
 import vision
+from gp_ranker import GPRanker
 from ranker import Ranker, photo_features
 
 REPO = Path(__file__).resolve().parent.parent
@@ -100,6 +101,11 @@ ranker = Ranker({photo: f for photo, (_, f) in train.items()})
 ranker.fit(training_picks)
 scores = {photo: ranker.score_new(f) for photo, (_, f) in test.items()}
 agreed = [scores[c["winner"]] > scores[c["loser"]] for c in test_choices]
+# The Gaussian-process model on the same picks and features, which can learn how features combine.
+gp = GPRanker({photo: f for photo, (_, f) in train.items()})
+gp.fit(training_picks)
+gp_scores = {photo: gp.score_new(f) for photo, (_, f) in test.items()}
+gp_agreed = [gp_scores[c["winner"]] > gp_scores[c["loser"]] for c in test_choices]
 
 st.sidebar.metric("Test picks made", len(test_choices))
 st.sidebar.caption(f"Weights learned from {len(training_picks)} training picks. "
@@ -121,6 +127,14 @@ else:
                "no better than a coin flip yet" if rate <= 0.55 else "a weak match so far")
     st.success(f"Your weights picked the same photo as you in **{sum(agreed)} of {len(agreed)}** test picks "
                f"(**{rate:.0%}**; a coin flip gets 50%): {verdict}.")
+    bt_column, gp_column = st.columns(2)
+    bt_column.metric("Bradley-Terry (the app's model)", f"{rate:.0%}", help="Adds up a fixed amount per feature.")
+    gp_rate = sum(gp_agreed) / len(gp_agreed)
+    gp_column.metric("Gaussian process", f"{gp_rate:.0%}", f"{(gp_rate - rate) * 100:+.0f} points",
+                     help="Same picks and features, but learns curves and how features combine.")
+    both = sum(a != g for a, g in zip(agreed, gp_agreed))
+    st.caption(f"They disagree on {both} of {len(agreed)} test picks; the GP chose its smoothness "
+               f"(length scale {gp.length_scale}, amplitude {gp.amplitude}) from the training picks only.")
     with st.expander("Where they disagreed with you"):
         misses = [c for c, ok in zip(test_choices, agreed) if not ok]
         if not misses:

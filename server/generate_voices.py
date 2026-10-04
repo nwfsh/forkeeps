@@ -19,7 +19,7 @@ from pathlib import Path
 
 import certifi
 
-from personas import CLIPS, MODEL, PERSONAS, VOICES_FOLDER, clip_path
+from personas import CLIPS, MODEL, PERSONAS, VOICES_FOLDER, clip_path, name_clip
 
 API = "https://api.elevenlabs.io/v1"
 # What each saved clip was made from, so a rerun only pays for lines that changed.
@@ -91,6 +91,24 @@ def generate(key: str, only: list[str]) -> None:
             MANIFEST.write_text(json.dumps(manifest, indent=1, sort_keys=True))
             made += 1
     print(f"Recorded {made} clip{'' if made == 1 else 's'}; the rest were already up to date.")
+
+
+def record_name(key: str, person: str) -> int:
+    """Record each persona calling `person` by name (their "name_call"), for the ones missing.
+    Returns how many were recorded."""
+    spoken = person.strip().capitalize()
+    made = 0
+    for persona_id, persona in PERSONAS.items():
+        path = clip_path(persona_id, name_clip(person))
+        if path.exists():
+            continue
+        text = persona["name_call"].format(name=spoken)
+        audio = call(f"/text-to-speech/{persona['voice_id']}?output_format=mp3_44100_128", key,
+                     {"text": text, "model_id": MODEL, "voice_settings": persona["settings"]})
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(audio)
+        made += 1
+    return made
 
 
 if __name__ == "__main__":

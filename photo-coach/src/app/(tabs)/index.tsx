@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router, useIsFocused } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,10 +9,11 @@ import { FaceOverlay } from '@/components/face-overlay';
 import { usePhotos } from '@/components/photos-provider';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
+import { useMakeupReminder } from '@/hooks/use-makeup-reminder';
 import { useVoiceCoach } from '@/hooks/use-voice-coach';
 import { BURST_SIZE, rankBurst } from '@/lib/burst';
-import { redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
-import { GOOD_CLIP } from '@/lib/voice';
+import { currentPerson, mainRedFlag, redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
+import { GOOD_CLIP, nameClip } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
 // Auto-capture fires after this many perfect frames in a row (about half a second), then
@@ -20,6 +21,9 @@ const WIDE_LENS = 'builtInWideAngleCamera';
 const STEADY_FRAMES = 2;
 const AUTO_COOLDOWN_MS = 4000;
 const NOTICE_MS = 3000;
+// Once the coach has said their name in a group, it isn't said again until the group has been
+// gone this long (a frame or two seeing only one face doesn't count as the group breaking up).
+const GROUP_GONE_MS = 10000;
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -46,22 +50,35 @@ export default function CameraScreen() {
   const busy = useRef(false);
   // Set below once takeBurst exists; the frame loop calls it with every analysis.
   const onFrameRef = useRef<(frame: Analysis) => void>(() => {});
+  const makeup = useMakeupReminder();
+  // In a group the coach says the profile's name before its first tip, so they know it's for
+  // them; after that tips carry on as usual until the group breaks up.
+  const [named, setNamed] = useState(false);
+  const lastGroupAt = useRef(0);
+  const onNameSaid = useCallback(() => setNamed(true), []);
 
   const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(cameraRef, ready && isFocused, (frame) =>
     onFrameRef.current(frame)
   );
   // The line for the tip on screen: first why the photo can't be judged at all (nobody there, face
-  // cut off or covered), then a framing or lighting warning, then the change the profile's taste
-  // model wants, then praise when there's nothing left to fix.
+  // cut off or covered), then a makeup reminder against their makeup look (colour that's off is
+  // the first thing people notice), then a framing or lighting warning, then the change the
+  // profile's taste model wants, then praise when there's nothing left to fix.
   const instruction = analysis?.shot?.instruction ?? null;
-  const redFlag = analysis?.red_flags?.[0];
-  // Red flags are spoken by their code; ones a voice has no line for stay quiet (useVoiceCoach
-  // skips clips it doesn't have), rather than saying "looks good".
+  const redFlag = analysis ? mainRedFlag(analysis) : null;
+  // Red flags are spoken by their own line; one a voice has no line for stays quiet
+  // (useVoiceCoach skips clips it doesn't have), rather than saying "looks good".
   const clip =
     !isFocused || error || !analysis
       ? null
-      : (redFlag ?? analysis.warnings[0]?.clip ?? instruction?.clip ?? GOOD_CLIP);
-  const voice = useVoiceCoach(clip);
+      : redFlag
+        ? redFlag.clip
+        : (makeup.tip?.clip ??
+        analysis.warnings[0]?.clip ??
+        instruction?.clip ??
+        GOOD_CLIP);
+  const inGroup = analysis?.subject === 'found';
+  const voice = useVoiceCoach(clip, inGroup && !named ? nameClip() : null, onNameSaid);
 
   // iOS reports lens names like "Back Ultra Wide Camera"; only the back camera has one.
   const ultraWideLens = lenses.find((l) => /ultra\s*wide/i.test(l));
@@ -125,6 +142,9 @@ export default function CameraScreen() {
 
   /** Counts perfect frames in a row and fires a burst once there are enough. */
   function onFrame(frame: Analysis) {
+    makeup.onFrame(frame);
+    if (frame.subject === 'found') lastGroupAt.current = Date.now();
+    else if (named && Date.now() - lastGroupAt.current > GROUP_GONE_MS) setNamed(false);
     perfectStreak.current = frame.shot?.perfect ? perfectStreak.current + 1 : 0;
     const rested = Date.now() - lastAutoAt.current > AUTO_COOLDOWN_MS;
     if (auto && !busy.current && rested && perfectStreak.current >= STEADY_FRAMES) {
@@ -156,12 +176,19 @@ export default function CameraScreen() {
     );
   }
 
+  /** In a group, a tip starts with the profile's name: "Avery, tilt your chin down a little". */
+  function forThem(message: string | undefined) {
+    if (!message || !inGroup) return message;
+    const person = currentPerson();
+    return `${person.charAt(0).toUpperCase()}${person.slice(1)}, ${message.charAt(0).toLowerCase()}${message.slice(1)}`;
+  }
+
   // The error can come from taking the snapshot as well as from the network, so show it.
   const tip = error
     ? `Can't reach ${SERVER_URL} (${error})`
     : redFlag
-      ? redFlagMessage(redFlag)
-      : (analysis?.warnings[0]?.message ?? instruction?.message);
+      ? redFlagMessage(redFlag.flag, analysis?.subject)
+      : forThem(makeup.tip?.message ?? analysis?.warnings[0]?.message ?? instruction?.message);
 
   return (
     <View

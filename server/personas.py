@@ -3,6 +3,7 @@
 The tips are a small fixed set, so every line is recorded once by generate_voices.py and
 served as an mp3, rather than calling ElevenLabs while someone is taking a photo.
 """
+import re
 from pathlib import Path
 
 VOICES_FOLDER = Path(__file__).resolve().parent / "voices"
@@ -14,6 +15,8 @@ MODEL = "eleven_multilingual_v2"
 CLIPS = (
     "no_person",
     "face_covered",
+    # Red flags without a framing warning of their own (vision.RED_FLAGS), said by their code.
+    "no_face", "face_too_small", "several_people",
     "cut_off_left", "cut_off_right", "cut_off_top", "cut_off_bottom",
     "cut_at_joint_ankles", "cut_at_joint_knees", "cut_at_joint_hips",
     "looking_room_left", "looking_room_right",
@@ -23,6 +26,8 @@ CLIPS = (
     # Taste instructions from shots.instruction: what the person's own model says would help.
     "look_at_lens", "look_away", "smile_more", "relax_smile", "show_teeth", "close_lips",
     "chin_up", "chin_down", "turn_left_side", "turn_right_side",
+    # Makeup reminders from makeup.check, against the person's reference look.
+    "reapply_lips", "reapply_blush",
     "looks_good",
 )
 
@@ -32,6 +37,8 @@ CLIPS = (
 PERSONAS = {
     "hype": {
         "name": "Hype man",
+        # Said before the first tip when there are several people, so they know it's for them.
+        "name_call": "{name}!",
         "description": "Loud, excited, thinks every shot is the one",
         "voice_id": "IKne3meq5aSn9XLyUdCD",
         "settings": {"stability": 0.3, "similarity_boost": 0.75, "style": 0.6, "speed": 1.1},
@@ -64,11 +71,18 @@ PERSONAS = {
             "chin_down": "Chin down a touch! That's the angle!",
             "turn_left_side": "Turn your head a little to your right! Yes!",
             "turn_right_side": "Turn your head a little to your left! Yes!",
+            "reapply_lips": "Lips are fading! Hit that lip colour again!",
+            "reapply_blush": "Cheeks need some colour! Blush it up!",
+            "no_face": "Show me that face! Turn back to the camera!",
+            "face_too_small": "Come closer! I need to see that face!",
+            "several_people": "Too many people! Just you in the shot!",
             "looks_good": "Yes! That's the one! Take it, take it!",
         },
     },
     "strict": {
         "name": "Strict",
+        # Said before the first tip when there are several people, so they know it's for them.
+        "name_call": "{name}.",
         "description": "Short, stern, not here to flatter you",
         "voice_id": "pNInz6obpgDQGcFmaJgB",
         "settings": {"stability": 0.75, "similarity_boost": 0.75, "style": 0.1, "speed": 1.0},
@@ -101,11 +115,18 @@ PERSONAS = {
             "chin_down": "Chin down. Slightly.",
             "turn_left_side": "Turn your head slightly to your right.",
             "turn_right_side": "Turn your head slightly to your left.",
+            "reapply_lips": "Your lip colour has faded. Reapply.",
+            "reapply_blush": "Your blush has worn off. Fix it.",
+            "no_face": "I can't see your face. Face the camera.",
+            "face_too_small": "Your face is too small. Come closer.",
+            "several_people": "There's someone else in the frame. Clear it.",
             "looks_good": "Acceptable. Take the photo.",
         },
     },
     "sunny": {
         "name": "Sunny",
+        # Said before the first tip when there are several people, so they know it's for them.
+        "name_call": "Hey {name},",
         "description": "A warm, encouraging woman's voice",
         "voice_id": "cgSgspJ2msm6clMCkdW9",
         "settings": {"stability": 0.5, "similarity_boost": 0.75, "style": 0.3, "speed": 1.0},
@@ -138,11 +159,18 @@ PERSONAS = {
             "chin_down": "Bring your chin down just a touch.",
             "turn_left_side": "Turn your head a little to your right.",
             "turn_right_side": "Turn your head a little to your left.",
+            "reapply_lips": "Your lip colour's fading a little. Time for a touch up.",
+            "reapply_blush": "Your cheeks could use a little more blush.",
+            "no_face": "I can't quite see your face. Turn towards the camera.",
+            "face_too_small": "Come a little closer so I can see your face.",
+            "several_people": "Someone else is in the shot. Let's make it just you.",
             "looks_good": "That looks lovely. Go ahead.",
         },
     },
     "chill": {
         "name": "Chill",
+        # Said before the first tip when there are several people, so they know it's for them.
+        "name_call": "{name},",
         "description": "A calm, laid-back man's voice",
         "voice_id": "bIHbv24MWmeRgasZH58o",
         "settings": {"stability": 0.6, "similarity_boost": 0.75, "style": 0.2, "speed": 0.95},
@@ -175,6 +203,11 @@ PERSONAS = {
             "chin_down": "Chin down a touch.",
             "turn_left_side": "Turn your head a little to your right.",
             "turn_right_side": "Turn your head a little to your left.",
+            "reapply_lips": "Lips are fading. Quick touch up.",
+            "reapply_blush": "Bit more blush on the cheeks.",
+            "no_face": "Can't see your face. Turn back this way.",
+            "face_too_small": "Come in a bit closer.",
+            "several_people": "Someone else is in there. Just you for this one.",
             "looks_good": "Yeah, that works. Take it.",
         },
     },
@@ -184,6 +217,15 @@ PERSONAS = {
 def clip_path(persona: str, clip: str) -> Path:
     """Where a persona's recording of one line is kept."""
     return VOICES_FOLDER / persona / f"{clip}.mp3"
+
+
+def name_clip(person: str) -> str:
+    """The clip of a persona calling this person by name, e.g. "name_avery"."""
+    return f"name_{re.sub(r'[^a-z0-9_-]', '', person.lower()) or 'me'}"
+
+
+def is_name_clip(clip: str) -> bool:
+    return re.fullmatch(r"name_[a-z0-9_-]+", clip) is not None
 
 
 def recorded(persona: str) -> list[str]:
