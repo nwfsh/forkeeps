@@ -1,0 +1,775 @@
+{
+ "person": "me",
+ "updated": "2026-10-04T07:52:24+00:00",
+ "picks": 126,
+ "confidence": 0.81,
+ "source": "review",
+ "regions": {
+  "Eyes": 0.21608227150846968,
+  "Mouth": 0.1965753061369768,
+  "Head angle": 0.0712152895949674,
+  "Photo quality": 0.03247373275211641,
+  "Framing": 0.02234992435111011,
+  "Body angle": 0.03547632206652661,
+  "Posture": 0.05226383794198031,
+  "Lighting": 0.19254749070607954,
+  "Overall": 0.0,
+  "Brows": 0.0918696219196105,
+  "Cheeks": 0.04302697374740153,
+  "Jaw": 0.04226079002407954,
+  "Nose": 0.0038584392506818034
+ },
+ "priorities": [
+  {
+   "feature": "top_light",
+   "region": "Lighting",
+   "prefers": "Light from above, more of it",
+   "share": 0.05549357376157314,
+   "weight": 0.802279319246038
+  },
+  {
+   "feature": "expr_eyeWideRight",
+   "region": "Eyes",
+   "prefers": "Eyes: wide right, less of it",
+   "share": 0.04556723853438846,
+   "weight": -0.658772730485157
+  },
+  {
+   "feature": "backlit",
+   "region": "Lighting",
+   "prefers": "Background brighter than the face, less of it",
+   "share": 0.04509161971488011,
+   "weight": -0.6518966344460876
+  },
+  {
+   "feature": "expr_eyeSquintRight",
+   "region": "Eyes",
+   "prefers": "Eyes: squint right, more of it",
+   "share": 0.030516602319254266,
+   "weight": 0.44118331682121126
+  },
+  {
+   "feature": "expr_eyeLookUpLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: look up left, more of it",
+   "share": 0.030094603010474716,
+   "weight": 0.43508240647752755
+  },
+  {
+   "feature": "expr_mouthClose",
+   "region": "Mouth",
+   "prefers": "Mouth: close, more of it",
+   "share": 0.025380406279477016,
+   "weight": 0.3669285232840167
+  },
+  {
+   "feature": "eye_contact",
+   "region": "Eyes",
+   "prefers": "Looking at the camera, less of it",
+   "share": 0.02492679225920017,
+   "weight": -0.36037055408650637
+  },
+  {
+   "feature": "expr_eyeSquintLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: squint left, more of it",
+   "share": 0.024670884681194286,
+   "weight": 0.35667085800359466
+  },
+  {
+   "feature": "expr_browOuterUpLeft",
+   "region": "Brows",
+   "prefers": "Brows: outer up left, less of it",
+   "share": 0.02441135088204004,
+   "weight": -0.35291873707151317
+  },
+  {
+   "feature": "expr_mouthLowerDownRight",
+   "region": "Mouth",
+   "prefers": "Mouth: lower down right, less of it",
+   "share": 0.023493314893713587,
+   "weight": -0.33964654647657405
+  },
+  {
+   "feature": "expr_mouthDimpleRight",
+   "region": "Mouth",
+   "prefers": "Mouth: dimple right, less of it",
+   "share": 0.023238732888018216,
+   "weight": -0.3359660144009303
+  },
+  {
+   "feature": "expr_cheekPuff",
+   "region": "Cheeks",
+   "prefers": "Cheeks: puff, less of it",
+   "share": 0.023119575972355696,
+   "weight": -0.33424334414019136
+  },
+  {
+   "feature": "upright",
+   "region": "Posture",
+   "prefers": "Head over shoulders, not slouching, more of it",
+   "share": 0.022391422569374948,
+   "weight": 0.3237163159304025
+  },
+  {
+   "feature": "bright_face",
+   "region": "Lighting",
+   "prefers": "Brightly lit face, more of it",
+   "share": 0.021102474172652836,
+   "weight": 0.30508178634129257
+  },
+  {
+   "feature": "expr_eyeLookInRight",
+   "region": "Eyes",
+   "prefers": "Eyes: look in right, more of it",
+   "share": 0.020633888920734568,
+   "weight": 0.29830737569452254
+  },
+  {
+   "feature": "expr_mouthRight",
+   "region": "Mouth",
+   "prefers": "Mouth: right, more of it",
+   "share": 0.01999742286624686,
+   "weight": 0.28910588589479375
+  },
+  {
+   "feature": "expr_eyeLookUpRight",
+   "region": "Eyes",
+   "prefers": "Eyes: look up right, more of it",
+   "share": 0.019758374225298178,
+   "weight": 0.28564992211507767
+  },
+  {
+   "feature": "expr_browOuterUpRight",
+   "region": "Brows",
+   "prefers": "Brows: outer up right, less of it",
+   "share": 0.019519672369972263,
+   "weight": -0.28219897186962334
+  },
+  {
+   "feature": "expr_eyeWideLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: wide left, less of it",
+   "share": 0.018829205168035552,
+   "weight": -0.272216778992453
+  },
+  {
+   "feature": "contour",
+   "region": "Lighting",
+   "prefers": "One side of the face lit more than the other (contour), less of it",
+   "share": 0.01876368628825129,
+   "weight": -0.2712695622480976
+  },
+  {
+   "feature": "sharpness",
+   "region": "Photo quality",
+   "prefers": "Sharp focus, more of it",
+   "share": 0.017449029436188767,
+   "weight": 0.25226336147886175
+  },
+  {
+   "feature": "expr_eyeLookOutLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: look out left, more of it",
+   "share": 0.01708697028457311,
+   "weight": 0.24702901540965713
+  },
+  {
+   "feature": "expr_mouthRollLower",
+   "region": "Mouth",
+   "prefers": "Mouth: roll lower, less of it",
+   "share": 0.016753988609036246,
+   "weight": -0.24221504698299026
+  },
+  {
+   "feature": "expr_mouthPucker",
+   "region": "Mouth",
+   "prefers": "Mouth: pucker, less of it",
+   "share": 0.016644067941759936,
+   "weight": -0.24062590661707328
+  },
+  {
+   "feature": "expr_mouthFrownLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: frown left, more of it",
+   "share": 0.01642744710771779,
+   "weight": 0.23749418516736942
+  },
+  {
+   "feature": "facing_camera",
+   "region": "Body angle",
+   "prefers": "Facing the camera, more of it",
+   "share": 0.016093224040685018,
+   "weight": 0.2326622697487043
+  },
+  {
+   "feature": "expr_jawOpen",
+   "region": "Jaw",
+   "prefers": "Jaw: open, less of it",
+   "share": 0.016073541314612968,
+   "weight": -0.23237771348383235
+  },
+  {
+   "feature": "expr_mouthShrugLower",
+   "region": "Mouth",
+   "prefers": "Mouth: shrug lower, less of it",
+   "share": 0.01580623561759316,
+   "weight": -0.22851323300259613
+  },
+  {
+   "feature": "head_straight",
+   "region": "Head angle",
+   "prefers": "Head held straight, more of it",
+   "share": 0.015552142687092922,
+   "weight": 0.22483977156392917
+  },
+  {
+   "feature": "expr_browInnerUp",
+   "region": "Brows",
+   "prefers": "Brows: inner up, less of it",
+   "share": 0.015440149959716322,
+   "weight": -0.22322067509942245
+  },
+  {
+   "feature": "chin_level",
+   "region": "Head angle",
+   "prefers": "Chin level, more of it",
+   "share": 0.015094769258044602,
+   "weight": 0.2182274520028451
+  },
+  {
+   "feature": "under_eye_shadow",
+   "region": "Lighting",
+   "prefers": "Shadows under the eyes, less of it",
+   "share": 0.014186534766609343,
+   "weight": -0.20509696318921933
+  },
+  {
+   "feature": "expr_mouthFrownRight",
+   "region": "Mouth",
+   "prefers": "Mouth: frown right, more of it",
+   "share": 0.013982466545746803,
+   "weight": 0.20214671684147525
+  },
+  {
+   "feature": "light_contrast",
+   "region": "Lighting",
+   "prefers": "Strong light and shadow on the face, less of it",
+   "share": 0.012830805306403167,
+   "weight": -0.18549696926759565
+  },
+  {
+   "feature": "expr_mouthPressRight",
+   "region": "Mouth",
+   "prefers": "Mouth: press right, less of it",
+   "share": 0.012771353507269283,
+   "weight": -0.1846374652619244
+  },
+  {
+   "feature": "hand_raised",
+   "region": "Posture",
+   "prefers": "A hand raised to the hair or head, less of it",
+   "share": 0.012650522396568945,
+   "weight": -0.18289059090034676
+  },
+  {
+   "feature": "left_side",
+   "region": "Head angle",
+   "prefers": "Your right side toward the camera",
+   "share": 0.01260971380652432,
+   "weight": -0.18230061469911923
+  },
+  {
+   "feature": "expr_eyeLookDownLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: look down left, less of it",
+   "share": 0.011699942174360914,
+   "weight": -0.1691479032003541
+  },
+  {
+   "feature": "expr_eyeLookDownRight",
+   "region": "Eyes",
+   "prefers": "Eyes: look down right, less of it",
+   "share": 0.011147091247618018,
+   "weight": -0.1611552504464065
+  },
+  {
+   "feature": "expr_jawForward",
+   "region": "Jaw",
+   "prefers": "Jaw: forward, less of it",
+   "share": 0.011036162682184835,
+   "weight": -0.15955153873839792
+  },
+  {
+   "feature": "looking_room",
+   "region": "Framing",
+   "prefers": "Space in the direction you look, more of it",
+   "share": 0.010829089596844551,
+   "weight": 0.156557850592546
+  },
+  {
+   "feature": "goofy",
+   "region": "Mouth",
+   "prefers": "Goofy face, less of it",
+   "share": 0.010516826741357661,
+   "weight": -0.15204341740425995
+  },
+  {
+   "feature": "expr_mouthLowerDownLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: lower down left, less of it",
+   "share": 0.010295730046387654,
+   "weight": -0.14884698772953397
+  },
+  {
+   "feature": "expr_eyeLookOutRight",
+   "region": "Eyes",
+   "prefers": "Eyes: look out right, less of it",
+   "share": 0.009697552504674906,
+   "weight": -0.14019904097779884
+  },
+  {
+   "feature": "expr_mouthPressLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: press left, less of it",
+   "share": 0.009529071363674957,
+   "weight": -0.1377632826377794
+  },
+  {
+   "feature": "expr_mouthStretchLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: stretch left, more of it",
+   "share": 0.009416812716856019,
+   "weight": 0.1361403417340933
+  },
+  {
+   "feature": "expr_jawRight",
+   "region": "Jaw",
+   "prefers": "Jaw: right, less of it",
+   "share": 0.008961597096893403,
+   "weight": -0.12955921795816047
+  },
+  {
+   "feature": "expr_mouthUpperUpRight",
+   "region": "Mouth",
+   "prefers": "Mouth: upper up right, less of it",
+   "share": 0.008789643746752805,
+   "weight": -0.12707326134477687
+  },
+  {
+   "feature": "chin_up",
+   "region": "Head angle",
+   "prefers": "Chin up",
+   "share": 0.008451009929395048,
+   "weight": 0.12217757901531055
+  },
+  {
+   "feature": "expr_mouthUpperUpLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: upper up left, less of it",
+   "share": 0.008285341460727964,
+   "weight": -0.11978248392134856
+  },
+  {
+   "feature": "expr_mouthRollUpper",
+   "region": "Mouth",
+   "prefers": "Mouth: roll upper, less of it",
+   "share": 0.006955649858972883,
+   "weight": -0.10055892341240291
+  },
+  {
+   "feature": "body_turned",
+   "region": "Body angle",
+   "prefers": "Body angled to the camera, less of it",
+   "share": 0.006836729702356014,
+   "weight": -0.09883967601440456
+  },
+  {
+   "feature": "expr_browDownRight",
+   "region": "Brows",
+   "prefers": "Brows: down right, more of it",
+   "share": 0.006814758633483101,
+   "weight": 0.09852203681794189
+  },
+  {
+   "feature": "long_neck",
+   "region": "Posture",
+   "prefers": "Shoulders relaxed down, less of it",
+   "share": 0.006072968465241823,
+   "weight": -0.08779785974913482
+  },
+  {
+   "feature": "expr_eyeLookInLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: look in left, less of it",
+   "share": 0.005122614954743987,
+   "weight": -0.07405844965597465
+  },
+  {
+   "feature": "clean_crop",
+   "region": "Framing",
+   "prefers": "Frame not cutting at a joint, more of it",
+   "share": 0.005074048465435372,
+   "weight": 0.07335631628557589
+  },
+  {
+   "feature": "expr_mouthSmileLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: smile left, more of it",
+   "share": 0.00476451679350821,
+   "weight": 0.0688813682473443
+  },
+  {
+   "feature": "expr_eyeBlinkRight",
+   "region": "Eyes",
+   "prefers": "Eyes: blink right, more of it",
+   "share": 0.003757149855409878,
+   "weight": 0.05431770606907364
+  },
+  {
+   "feature": "arms_away",
+   "region": "Posture",
+   "prefers": "Arms held away from the body, less of it",
+   "share": 0.003472800031166967,
+   "weight": -0.05020681596130225
+  },
+  {
+   "feature": "expr_mouthFunnel",
+   "region": "Mouth",
+   "prefers": "Mouth: funnel, less of it",
+   "share": 0.0031382267794543544,
+   "weight": -0.045369837867673
+  },
+  {
+   "feature": "eyes_open",
+   "region": "Eyes",
+   "prefers": "Eyes open, more of it",
+   "share": 0.0030447757656916386,
+   "weight": 0.04401880187156781
+  },
+  {
+   "feature": "expr_eyeBlinkLeft",
+   "region": "Eyes",
+   "prefers": "Eyes: blink left, less of it",
+   "share": 0.0028470009579599797,
+   "weight": -0.041159540386757044
+  },
+  {
+   "feature": "expr_browDownLeft",
+   "region": "Brows",
+   "prefers": "Brows: down left, less of it",
+   "share": 0.0024399063686980724,
+   "weight": -0.035274109916104114
+  },
+  {
+   "feature": "warm_light",
+   "region": "Lighting",
+   "prefers": "Warm-coloured light, more of it",
+   "share": 0.002293172548775877,
+   "weight": 0.03315275601550047
+  },
+  {
+   "feature": "expr_mouthLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: left, less of it",
+   "share": 0.0022333615000972003,
+   "weight": -0.032288058282687514
+  },
+  {
+   "feature": "expr_noseSneerLeft",
+   "region": "Nose",
+   "prefers": "Nose: sneer left, less of it",
+   "share": 0.002073245492805415,
+   "weight": -0.02997323599565365
+  },
+  {
+   "feature": "expr_mouthSmileRight",
+   "region": "Mouth",
+   "prefers": "Mouth: smile right, less of it",
+   "share": 0.001782273497191161,
+   "weight": -0.025766608115387047
+  },
+  {
+   "feature": "expr_mouthShrugUpper",
+   "region": "Mouth",
+   "prefers": "Mouth: shrug upper, more of it",
+   "share": 0.001574973365341322,
+   "weight": 0.02276963752245567
+  },
+  {
+   "feature": "smile",
+   "region": "Mouth",
+   "prefers": "Smiling, more of it",
+   "share": 0.0015629454589045797,
+   "weight": 0.022595748188359358
+  },
+  {
+   "feature": "expr_mouthDimpleLeft",
+   "region": "Mouth",
+   "prefers": "Mouth: dimple left, less of it",
+   "share": 0.0013007976854869524,
+   "weight": -0.018805836619445536
+  },
+  {
+   "feature": "expr_mouthStretchRight",
+   "region": "Mouth",
+   "prefers": "Mouth: stretch right, more of it",
+   "share": 0.0012881386964054885,
+   "weight": 0.01862282362435073
+  },
+  {
+   "feature": "expr_jawLeft",
+   "region": "Jaw",
+   "prefers": "Jaw: left, less of it",
+   "share": 0.0012733394420489682,
+   "weight": -0.01840886847773302
+  },
+  {
+   "feature": "blown_out",
+   "region": "Lighting",
+   "prefers": "Blown-out highlights on the skin, less of it",
+   "share": 0.0011669300098132622,
+   "weight": -0.016870490588750592
+  }
+ ],
+ "weights": {
+  "eyes_open": 0.04401880187156781,
+  "eye_contact": -0.36037055408650637,
+  "smile": 0.022595748188359358,
+  "goofy": -0.15204341740425995,
+  "head_straight": 0.22483977156392917,
+  "chin_level": 0.2182274520028451,
+  "sharpness": 0.25226336147886175,
+  "face_in_frame": 0.0,
+  "clean_crop": 0.07335631628557589,
+  "looking_room": 0.156557850592546,
+  "body_turned": -0.09883967601440456,
+  "facing_camera": 0.2326622697487043,
+  "upright": 0.3237163159304025,
+  "long_neck": -0.08779785974913482,
+  "arms_away": -0.05020681596130225,
+  "hand_raised": -0.18289059090034676,
+  "left_side": -0.18230061469911923,
+  "chin_up": 0.12217757901531055,
+  "bright_face": 0.30508178634129257,
+  "light_contrast": -0.18549696926759565,
+  "contour": -0.2712695622480976,
+  "under_eye_shadow": -0.20509696318921933,
+  "top_light": 0.802279319246038,
+  "backlit": -0.6518966344460876,
+  "blown_out": -0.016870490588750592,
+  "warm_light": 0.03315275601550047,
+  "expr__neutral": 0.0,
+  "expr_browDownLeft": -0.035274109916104114,
+  "expr_browDownRight": 0.09852203681794189,
+  "expr_browInnerUp": -0.22322067509942245,
+  "expr_browOuterUpLeft": -0.35291873707151317,
+  "expr_browOuterUpRight": -0.28219897186962334,
+  "expr_cheekPuff": -0.33424334414019136,
+  "expr_cheekSquintLeft": 0.0,
+  "expr_cheekSquintRight": 0.0,
+  "expr_eyeBlinkLeft": -0.041159540386757044,
+  "expr_eyeBlinkRight": 0.05431770606907364,
+  "expr_eyeLookDownLeft": -0.1691479032003541,
+  "expr_eyeLookDownRight": -0.1611552504464065,
+  "expr_eyeLookInLeft": -0.07405844965597465,
+  "expr_eyeLookInRight": 0.29830737569452254,
+  "expr_eyeLookOutLeft": 0.24702901540965713,
+  "expr_eyeLookOutRight": -0.14019904097779884,
+  "expr_eyeLookUpLeft": 0.43508240647752755,
+  "expr_eyeLookUpRight": 0.28564992211507767,
+  "expr_eyeSquintLeft": 0.35667085800359466,
+  "expr_eyeSquintRight": 0.44118331682121126,
+  "expr_eyeWideLeft": -0.272216778992453,
+  "expr_eyeWideRight": -0.658772730485157,
+  "expr_jawForward": -0.15955153873839792,
+  "expr_jawLeft": -0.01840886847773302,
+  "expr_jawOpen": -0.23237771348383235,
+  "expr_jawRight": -0.12955921795816047,
+  "expr_mouthClose": 0.3669285232840167,
+  "expr_mouthDimpleLeft": -0.018805836619445536,
+  "expr_mouthDimpleRight": -0.3359660144009303,
+  "expr_mouthFrownLeft": 0.23749418516736942,
+  "expr_mouthFrownRight": 0.20214671684147525,
+  "expr_mouthFunnel": -0.045369837867673,
+  "expr_mouthLeft": -0.032288058282687514,
+  "expr_mouthLowerDownLeft": -0.14884698772953397,
+  "expr_mouthLowerDownRight": -0.33964654647657405,
+  "expr_mouthPressLeft": -0.1377632826377794,
+  "expr_mouthPressRight": -0.1846374652619244,
+  "expr_mouthPucker": -0.24062590661707328,
+  "expr_mouthRight": 0.28910588589479375,
+  "expr_mouthRollLower": -0.24221504698299026,
+  "expr_mouthRollUpper": -0.10055892341240291,
+  "expr_mouthShrugLower": -0.22851323300259613,
+  "expr_mouthShrugUpper": 0.02276963752245567,
+  "expr_mouthSmileLeft": 0.0688813682473443,
+  "expr_mouthSmileRight": -0.025766608115387047,
+  "expr_mouthStretchLeft": 0.1361403417340933,
+  "expr_mouthStretchRight": 0.01862282362435073,
+  "expr_mouthUpperUpLeft": -0.11978248392134856,
+  "expr_mouthUpperUpRight": -0.12707326134477687,
+  "expr_noseSneerLeft": -0.02997323599565365,
+  "expr_noseSneerRight": 0.0
+ },
+ "mean": {
+  "eyes_open": 0.7569166666666667,
+  "eye_contact": 0.5710434782608695,
+  "smile": 0.2905833333333333,
+  "goofy": 0.08333333333333333,
+  "head_straight": 0.7766666666666667,
+  "chin_level": 0.40944444444444444,
+  "sharpness": 0.4036167557718639,
+  "face_in_frame": 1.0,
+  "clean_crop": 0.8148148148148148,
+  "looking_room": 0.9259259259259259,
+  "body_turned": 0.05555555555555555,
+  "facing_camera": 0.8395061728395063,
+  "upright": 0.031234567901234564,
+  "long_neck": 0.604037037037037,
+  "arms_away": 0.5405555555555556,
+  "hand_raised": 0.07407407407407407,
+  "left_side": 0.20300925925925928,
+  "chin_up": -0.17671296296296293,
+  "bright_face": 0.5965416666666666,
+  "light_contrast": 0.12516666666666668,
+  "contour": 0.08824999999999998,
+  "under_eye_shadow": 0.08566666666666665,
+  "top_light": 0.07850000000000001,
+  "backlit": -0.12933333333333336,
+  "blown_out": 4.1666666666666665e-05,
+  "warm_light": 0.17154166666666662,
+  "expr__neutral": 0.0,
+  "expr_browDownLeft": 0.08083333333333334,
+  "expr_browDownRight": 0.08707916666666665,
+  "expr_browInnerUp": 0.25384583333333327,
+  "expr_browOuterUpLeft": 0.13717916666666666,
+  "expr_browOuterUpRight": 0.14614999999999997,
+  "expr_cheekPuff": 0.00018333333333333334,
+  "expr_cheekSquintLeft": 0.0,
+  "expr_cheekSquintRight": 0.0,
+  "expr_eyeBlinkLeft": 0.22801666666666673,
+  "expr_eyeBlinkRight": 0.15925,
+  "expr_eyeLookDownLeft": 0.19090833333333335,
+  "expr_eyeLookDownRight": 0.1822083333333334,
+  "expr_eyeLookInLeft": 0.063625,
+  "expr_eyeLookInRight": 0.3282791666666666,
+  "expr_eyeLookOutLeft": 0.32102083333333337,
+  "expr_eyeLookOutRight": 0.058612500000000005,
+  "expr_eyeLookUpLeft": 0.11484583333333336,
+  "expr_eyeLookUpRight": 0.11272083333333333,
+  "expr_eyeSquintLeft": 0.476975,
+  "expr_eyeSquintRight": 0.45062500000000005,
+  "expr_eyeWideLeft": 0.009333333333333332,
+  "expr_eyeWideRight": 0.011891666666666667,
+  "expr_jawForward": 0.0004999999999999997,
+  "expr_jawLeft": 0.031666666666666655,
+  "expr_jawOpen": 0.09683333333333329,
+  "expr_jawRight": 0.005333333333333333,
+  "expr_mouthClose": 0.003833333333333334,
+  "expr_mouthDimpleLeft": 0.011329166666666666,
+  "expr_mouthDimpleRight": 0.0060666666666666655,
+  "expr_mouthFrownLeft": 0.031999999999999994,
+  "expr_mouthFrownRight": 0.027879166666666663,
+  "expr_mouthFunnel": 0.03336249999999999,
+  "expr_mouthLeft": 0.0122375,
+  "expr_mouthLowerDownLeft": 0.04315833333333333,
+  "expr_mouthLowerDownRight": 0.06788333333333335,
+  "expr_mouthPressLeft": 0.03870416666666667,
+  "expr_mouthPressRight": 0.03199583333333333,
+  "expr_mouthPucker": 0.15320833333333334,
+  "expr_mouthRight": 0.020641666666666666,
+  "expr_mouthRollLower": 0.019962499999999998,
+  "expr_mouthRollUpper": 0.011045833333333336,
+  "expr_mouthShrugLower": 0.011770833333333333,
+  "expr_mouthShrugUpper": 0.023245833333333327,
+  "expr_mouthSmileLeft": 0.293275,
+  "expr_mouthSmileRight": 0.2879125,
+  "expr_mouthStretchLeft": 0.016095833333333334,
+  "expr_mouthStretchRight": 0.0304625,
+  "expr_mouthUpperUpLeft": 0.13029166666666672,
+  "expr_mouthUpperUpRight": 0.12241250000000002,
+  "expr_noseSneerLeft": 4.166666666666667e-06,
+  "expr_noseSneerRight": 0.0
+ },
+ "std": {
+  "eyes_open": 0.18921722892543963,
+  "eye_contact": 0.16082571670326576,
+  "smile": 0.3767781085142229,
+  "goofy": 0.2763853991962833,
+  "head_straight": 0.17709330037310006,
+  "chin_level": 0.22792271811317708,
+  "sharpness": 0.0629497261792726,
+  "face_in_frame": 1.0,
+  "clean_crop": 0.38844772154450047,
+  "looking_room": 0.26189140043946213,
+  "body_turned": 0.20786985482077455,
+  "facing_camera": 0.21023933785094326,
+  "upright": 0.10656817011602367,
+  "long_neck": 0.22752948225433234,
+  "arms_away": 0.11240546096307326,
+  "hand_raised": 0.26189140043946213,
+  "left_side": 0.26006399164370503,
+  "chin_up": 0.11679467367581356,
+  "bright_face": 0.024289879865674296,
+  "light_contrast": 0.02034835510687671,
+  "contour": 0.037893765978060295,
+  "under_eye_shadow": 0.10370296792067023,
+  "top_light": 0.0604138505090789,
+  "backlit": 0.09175722799261588,
+  "blown_out": 0.00019982631347136327,
+  "warm_light": 0.022850928439683924,
+  "expr__neutral": 1.0,
+  "expr_browDownLeft": 0.1638944951960119,
+  "expr_browDownRight": 0.16666223322228368,
+  "expr_browInnerUp": 0.24854695394627593,
+  "expr_browOuterUpLeft": 0.19945898487986335,
+  "expr_browOuterUpRight": 0.16017652241615601,
+  "expr_cheekPuff": 0.00028382310609877337,
+  "expr_cheekSquintLeft": 1.0,
+  "expr_cheekSquintRight": 1.0,
+  "expr_eyeBlinkLeft": 0.17971177541336078,
+  "expr_eyeBlinkRight": 0.16059243444197488,
+  "expr_eyeLookDownLeft": 0.20004438865050816,
+  "expr_eyeLookDownRight": 0.19005165726863724,
+  "expr_eyeLookInLeft": 0.07319745697996162,
+  "expr_eyeLookInRight": 0.22783278038063842,
+  "expr_eyeLookOutLeft": 0.23619381162364428,
+  "expr_eyeLookOutRight": 0.07157748896883245,
+  "expr_eyeLookUpLeft": 0.09037537911016227,
+  "expr_eyeLookUpRight": 0.07534377312894248,
+  "expr_eyeSquintLeft": 0.20694296365987735,
+  "expr_eyeSquintRight": 0.2108937968306955,
+  "expr_eyeWideLeft": 0.009417477841167926,
+  "expr_eyeWideRight": 0.014325441141161724,
+  "expr_jawForward": 0.0005582711408148077,
+  "expr_jawLeft": 0.14855607433633342,
+  "expr_jawOpen": 0.10682144239597008,
+  "expr_jawRight": 0.011631984162452922,
+  "expr_mouthClose": 0.004165999946658131,
+  "expr_mouthDimpleLeft": 0.018360747968757214,
+  "expr_mouthDimpleRight": 0.009735830159205166,
+  "expr_mouthFrownLeft": 0.09557179674639027,
+  "expr_mouthFrownRight": 0.06938351136477279,
+  "expr_mouthFunnel": 0.06173492267010087,
+  "expr_mouthLeft": 0.04968419276205126,
+  "expr_mouthLowerDownLeft": 0.08038901726742416,
+  "expr_mouthLowerDownRight": 0.10973860862167982,
+  "expr_mouthPressLeft": 0.031274650000262014,
+  "expr_mouthPressRight": 0.06323771606121531,
+  "expr_mouthPucker": 0.22903732395373658,
+  "expr_mouthRight": 0.06688270775934704,
+  "expr_mouthRollLower": 0.05029539253665952,
+  "expr_mouthRollUpper": 0.01597923076910219,
+  "expr_mouthShrugLower": 0.01834674083606011,
+  "expr_mouthShrugUpper": 0.044277712406720175,
+  "expr_mouthSmileLeft": 0.3804275941292903,
+  "expr_mouthSmileRight": 0.37537861810055634,
+  "expr_mouthStretchLeft": 0.02843415609155455,
+  "expr_mouthStretchRight": 0.052271955614363624,
+  "expr_mouthUpperUpLeft": 0.2392526191369467,
+  "expr_mouthUpperUpRight": 0.22814225699568091,
+  "expr_noseSneerLeft": 1.998263134713633e-05,
+  "expr_noseSneerRight": 1.0
+ }
+}

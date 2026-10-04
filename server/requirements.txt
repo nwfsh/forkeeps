@@ -13,3 +13,7 @@ pytest
 insightface
 onnxruntime
 pillow-heif
+certifi
+# mediapipe 0.10.14 needs protobuf 4; insightface imports onnx, whose newer releases need protobuf 6.
+protobuf>=4.25.3,<5
+onnx<1.18

@@ -224,3 +224,16 @@ __marimo__/
 
 # Training photos stay out of git
 /data
+
+# Recorded coach voices; make them with server/generate_voices.py
+/server/voices/
+
+# JavaScript dependencies and Expo state, wherever they end up
+node_modules/
+.expo/
+
+# Stray npm files from running npm/expo outside photo-coach/; the only JS project is photo-coach/
+/package.json
+/package-lock.json
+/server/package.json
+/server/package-lock.json

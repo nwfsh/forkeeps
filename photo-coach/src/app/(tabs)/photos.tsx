@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -14,26 +15,39 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePhotos } from '@/components/photos-provider';
+import { RetrainBanner } from '@/components/retrain-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import type { Photo } from '@/lib/photos';
+import { sendVerdict } from '@/lib/server';
 
 const COLUMNS = 3;
 const GAP = 2;
 
 export default function PhotosScreen() {
-  const { photos } = usePhotos();
+  const { photos: all } = usePhotos();
+  // Burst shots that weren't the best wait in review; they join the grid once kept.
+  const photos = all.filter((p) => !p.alternate || p.kept);
   const { width } = useWindowDimensions();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const size = (width - GAP * (COLUMNS - 1)) / COLUMNS;
+  const toReview = all.filter((p) => !p.kept).length;
 
   return (
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.fill} edges={['top']}>
-        <ThemedText type="subtitle" style={styles.header}>
-          {photos.length} photo{photos.length === 1 ? '' : 's'}
-        </ThemedText>
+        <View style={styles.headerRow}>
+          <ThemedText type="subtitle">
+            {photos.length} photo{photos.length === 1 ? '' : 's'}
+          </ThemedText>
+          {toReview > 0 && (
+            <Pressable style={styles.reviewButton} onPress={() => router.push('/review')}>
+              <Text style={styles.reviewText}>Review {toReview}</Text>
+            </Pressable>
+          )}
+        </View>
+        <RetrainBanner />
         {photos.length === 0 ? (
           <ThemedText style={styles.empty}>Photos you take on the Camera tab show up here.</ThemedText>
         ) : (
@@ -68,7 +82,7 @@ function Viewer({
   initialIndex: number;
   onClose: () => void;
 }) {
-  const { remove } = usePhotos();
+  const { remove, keep } = usePhotos();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(initialIndex);
   const [permission, requestPermission] = MediaLibrary.usePermissions({ writeOnly: true });
@@ -86,20 +100,40 @@ function Viewer({
       Alert.alert('Saved', 'Added to your Photos library.');
     } catch (e) {
       Alert.alert('Save failed', e instanceof Error ? e.message : String(e));
+      return;
     }
+    // Saving a photo says you like it, the same as keeping it in review. The photo is safely
+    // saved either way, so a server that can't be reached only costs this one vote.
+    sendVerdict(current.id, 'keep', current.analysis)
+      .then(() => keep(current.id))
+      .catch((e) => console.warn(`Couldn't record keeping photo ${current.id}`, e));
+  }
+
+  function deleteNow(photo: Photo) {
+    remove(photo.id);
+    if (photos.length === 1) onClose();
+    else setIndex((i) => Math.min(i, photos.length - 2));
   }
 
   function confirmDelete() {
     if (!current) return;
+    const photo = current;
     Alert.alert('Delete photo?', undefined, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          remove(current.id);
-          if (photos.length === 1) onClose();
-          else setIndex((i) => Math.min(i, photos.length - 2));
+        onPress: async () => {
+          // The vote is saved first, like in review, since the photo can't come back after.
+          try {
+            await sendVerdict(photo.id, 'remove', photo.analysis);
+            deleteNow(photo);
+          } catch {
+            Alert.alert("Couldn't reach the server", 'Delete anyway? This photo won\'t count toward your taste.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete anyway', style: 'destructive', onPress: () => deleteNow(photo) },
+            ]);
+          }
         },
       },
     ]);
@@ -147,9 +181,22 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  header: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
+  },
+  reviewButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    backgroundColor: '#3DDC84',
+  },
+  reviewText: {
+    color: '#0B2E19',
+    fontWeight: '700',
   },
   empty: {
     paddingHorizontal: Spacing.three,
