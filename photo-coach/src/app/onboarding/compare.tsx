@@ -117,123 +117,144 @@ export default function CompareScreen() {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 },
+          { paddingTop: insets.top + 36, paddingBottom: insets.bottom + 16 },
         ]}>
         <StepDots step={3} steps={3} />
-        <Text style={styles.title}>Which do you prefer?</Text>
-
-        <View style={styles.card}>
+        <View style={styles.heading}>
+          <Text style={styles.title}>Which do you prefer?</Text>
           <Text style={styles.lead}>
             {training ? 'Building your profile…' : 'Tap the one you like more.'}
           </Text>
+        </View>
 
-          {a && b && !training && (
-            <View style={styles.pair}>
-              {(
-                [
-                  [a, b, 'A'],
-                  [b, a, 'B'],
-                ] as const
-              ).map(([shown, other, label]) => {
-                const isChosen = shown.id === chosen;
-                const faded = chosen !== null && !isChosen;
-                return (
-                  <Pressable
-                    key={shown.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Pick frame ${label}`}
-                    disabled={busy}
-                    onPress={() => tap(shown, other)}
-                    style={({ pressed }) => [
-                      styles.photoCard,
-                      isChosen && styles.photoChosen,
-                      faded && styles.photoFaded,
-                      pressed && !chosen && styles.pressed,
-                    ]}>
-                    <Image source={{ uri: shown.uri }} style={styles.photo} contentFit="cover" />
-                    {isChosen && (
-                      <View style={styles.check}>
-                        <SymbolView
-                          name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                          size={16}
-                          weight="bold"
-                          tintColor="#FFFFFF"
-                        />
+        {/* The photos and progress in the card, near the top; the other choices at the bottom. */}
+        <View style={styles.body}>
+          <View style={styles.card}>
+            {a && b && !training && (
+              <View style={styles.pair}>
+                {(
+                  [
+                    [a, b, 'A'],
+                    [b, a, 'B'],
+                  ] as const
+                ).map(([shown, other, label]) => {
+                  const isChosen = shown.id === chosen;
+                  const faded = chosen !== null && !isChosen;
+                  return (
+                    <Pressable
+                      key={shown.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Pick frame ${label}`}
+                      disabled={busy}
+                      onPress={() => tap(shown, other)}
+                      style={({ pressed }) => [
+                        styles.photoCard,
+                        isChosen && styles.photoChosen,
+                        faded && styles.photoFaded,
+                        pressed && !chosen && styles.pressed,
+                      ]}>
+                      <Image source={{ uri: shown.uri }} style={styles.photo} contentFit="cover" />
+                      {isChosen && (
+                        <View style={styles.check}>
+                          <SymbolView
+                            name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                            size={16}
+                            weight="bold"
+                            tintColor="#FFFFFF"
+                          />
+                        </View>
+                      )}
+                      <View style={[styles.label, isChosen ? styles.labelDark : styles.labelLight]}>
+                        <Text style={[styles.labelText, isChosen && styles.labelTextDark]}>
+                          Frame {label}
+                        </Text>
                       </View>
-                    )}
-                    <View style={[styles.label, isChosen ? styles.labelDark : styles.labelLight]}>
-                      <Text style={[styles.labelText, isChosen && styles.labelTextDark]}>
-                        Frame {label}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          {(training || (busy && !pair)) && (
-            <View style={styles.center}>
-              <ActivityIndicator color={INK} />
-            </View>
-          )}
-
-          {!training && !busy && step && !step.pair && count === 0 && (
-            <View style={styles.center}>
-              <Text style={styles.lead}>
-                Not enough snapshots to compare. Record again with your face in view.
-              </Text>
-              <PillButton
-                label="Record again"
-                onPress={() => router.replace('/onboarding/record')}
-              />
-            </View>
-          )}
-
-          {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.error}>{error}</Text>
-              {count > 0 && !training && (
-                <PillButton label="Try building my profile again" onPress={train} />
-              )}
-            </View>
-          )}
-
-          {a && b && !training && (
-            <>
-              <View style={styles.progress}>
-                <Text style={styles.count}>
-                  {count} of {goal}
-                </Text>
-                <View style={styles.track}>
-                  <View style={[styles.bar, { width: `${Math.min(1, count / goal) * 100}%` }]} />
-                </View>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <View style={styles.actions}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={busy}
-                  onPress={() => choose(a, b, true)}
-                  style={({ pressed }) => [styles.tie, pressed && styles.pressed]}>
-                  <Text style={styles.tieText}>Both the same: it’s a tie</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={busy}
-                  onPress={() => {
-                    setBusy(true);
-                    setSkipped((list) => [...list, [a.id, b.id]]);
-                  }}
-                  hitSlop={8}>
-                  <Text style={styles.skip}>Can’t decide? Skip this pair</Text>
-                </Pressable>
-                {count >= min && (
-                  <Pressable accessibilityRole="button" disabled={busy} onPress={train} hitSlop={8}>
-                    <Text style={styles.now}>Show my results now</Text>
-                  </Pressable>
+            )}
+
+            {(training || (busy && !pair)) && (
+              <View style={styles.center}>
+                <ActivityIndicator color={INK} />
+              </View>
+            )}
+
+            {!training && !busy && step && !step.pair && count === 0 && (
+              <View style={styles.center}>
+                <Text style={styles.lead}>
+                  Not enough snapshots to compare. Record again with your face in view.
+                </Text>
+                <PillButton
+                  label="Record again"
+                  onPress={() => router.replace('/onboarding/record')}
+                />
+              </View>
+            )}
+
+            {error && (
+              <View style={styles.errorBox}>
+                <Text style={styles.error}>{error}</Text>
+                {count > 0 && !training && (
+                  <PillButton label="Try building my profile again" onPress={train} />
                 )}
               </View>
-            </>
+            )}
+
+            {a && b && !training && (
+              <>
+                <View style={styles.progress}>
+                  <Text style={styles.count}>
+                    {count} of {goal}
+                  </Text>
+                  <View style={styles.track}>
+                    <View style={[styles.bar, { width: `${Math.min(1, count / goal) * 100}%` }]} />
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+
+          {a && b && !training && (
+            <View style={styles.actions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => choose(a, b, true)}
+                style={({ pressed }) => [styles.tie, pressed && styles.pressed]}>
+                <Text style={styles.tieText}>Both the same: it’s a tie</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy}
+                onPress={() => {
+                  setBusy(true);
+                  setSkipped((list) => [...list, [a.id, b.id]]);
+                }}
+                hitSlop={8}>
+                <Text style={styles.skip}>Can’t decide? Skip this pair</Text>
+              </Pressable>
+              {/* From the minimum on, they can stop whenever they've had enough. */}
+              {count >= min && (
+                <View style={styles.doneRow}>
+                  <Text style={styles.doneQuestion}>Done deciding?</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    onPress={train}
+                    style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}>
+                    <Text style={styles.doneText}>Show my results</Text>
+                    <SymbolView
+                      name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                      size={16}
+                      weight="semibold"
+                      tintColor="#FFFFFF"
+                    />
+                  </Pressable>
+                </View>
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -258,13 +279,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.6,
   },
-  // Fills the rest of the screen; the photos take whatever height is left in it.
-  card: {
+  heading: {
+    gap: 8,
+  },
+  body: {
     flex: 1,
+    justifyContent: 'space-between',
+  },
+  card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 32,
-    padding: 16,
-    paddingTop: 20,
+    padding: 12,
+    paddingTop: 32,
+    paddingBottom: 16,
     gap: 16,
     shadowColor: '#000000',
     shadowOpacity: 0.06,
@@ -278,17 +305,17 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 23,
   },
-  // The two photos side by side, as large as the space allows.
+  // The two photos side by side, each half the card's width.
   pair: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
   },
   photoCard: {
     flex: 1,
-    aspectRatio: 0.62,
-    maxHeight: '100%',
+    // Tall, like a phone photo, but not quite twice as high as wide.
+    aspectRatio: 0.58,
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: '#EEE9E6',
@@ -394,9 +421,32 @@ const styles = StyleSheet.create({
     color: MUTED,
     fontSize: 16,
   },
-  now: {
+  doneRow: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingTop: 4,
+  },
+  doneQuestion: {
+    flexShrink: 1,
     color: INK,
-    fontSize: 15,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  doneButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 46,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    backgroundColor: INK,
+  },
+  doneText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

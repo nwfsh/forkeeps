@@ -1,12 +1,14 @@
 import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import {
   Alert,
   FlatList,
   Modal,
   Pressable,
+  SectionList,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -17,14 +19,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/components/onboarding-provider';
 import { usePhotos } from '@/components/photos-provider';
 import { RetrainBanner } from '@/components/retrain-banner';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { INK, MUTED } from '@/components/onboarding-style';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import type { Photo } from '@/lib/photos';
 import { sendVerdict } from '@/lib/server';
 
 const COLUMNS = 3;
-const GAP = 2;
+const GAP = 6;
+const SIDE = 16;
+
+/** "24 FEB 2026": the day a photo was taken, as the grid's section heading. */
+function dayLabel(takenAt: number) {
+  return new Date(takenAt)
+    .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    .toUpperCase();
+}
+
+/** The photos grouped by day, newest first, each day cut into rows of COLUMNS. */
+function byDay(photos: Photo[]) {
+  const days: { title: string; photos: Photo[] }[] = [];
+  for (const photo of [...photos].sort((a, b) => b.takenAt - a.takenAt)) {
+    const title = dayLabel(photo.takenAt);
+    if (days.at(-1)?.title !== title) days.push({ title, photos: [] });
+    days.at(-1)!.photos.push(photo);
+  }
+  return days.map((day) => ({
+    title: day.title,
+    data: Array.from({ length: Math.ceil(day.photos.length / COLUMNS) }, (_, i) =>
+      day.photos.slice(i * COLUMNS, (i + 1) * COLUMNS),
+    ),
+  }));
+}
 
 export default function PhotosScreen() {
   const { photos: all } = usePhotos();
@@ -33,77 +58,88 @@ export default function PhotosScreen() {
   const photos = all.filter((p) => !p.alternate || p.kept);
   const { width } = useWindowDimensions();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const size = (width - GAP * (COLUMNS - 1)) / COLUMNS;
+  const size = (width - SIDE * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
   const toReview = all.filter((p) => !p.kept).length;
+  // The viewer pages through the photos in the grid's order.
+  const sections = byDay(photos);
+  const ordered = sections.flatMap((section) => section.data.flat());
+
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.titleRow}>
+        <View style={styles.titleText}>
+          <Text style={styles.title}>Photo gallery</Text>
+          <Text style={styles.count}>
+            {photos.length} photo{photos.length === 1 ? '' : 's'}
+          </Text>
+        </View>
+        <View style={styles.headerButtons}>
+          {/* Swipe the photos the coach is least sure about, then retrain the model you have. */}
+          {photos.length > 1 && (
+            <Pressable style={styles.outlineButton} onPress={() => router.push('/tune')}>
+              <Text style={styles.outlineText}>Tune</Text>
+            </Pressable>
+          )}
+          {toReview > 0 && (
+            <Pressable style={styles.inkButton} onPress={() => router.push('/review')}>
+              <Text style={styles.inkText}>Review {toReview}</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+      <RetrainBanner />
+      <View style={styles.links}>
+        <Pressable accessibilityRole="button" onPress={() => restart()} hitSlop={8}>
+          <Text style={styles.link}>Replay intro</Text>
+        </Pressable>
+        {/* Every onboarding page with a Skip button, for checking the design quickly. */}
+        <Pressable accessibilityRole="button" onPress={() => restart(true)} hitSlop={8}>
+          <Text style={styles.link}>Preview screens</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/makeup')} hitSlop={8}>
+          <Text style={styles.link}>Makeup look</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   return (
-    <ThemedView style={styles.fill}>
+    <View style={styles.fill}>
       <SafeAreaView style={styles.fill} edges={['top']}>
-        <View style={styles.headerRow}>
-          <ThemedText type="subtitle">
-            {photos.length} photo{photos.length === 1 ? '' : 's'}
-          </ThemedText>
-          <View style={styles.headerButtons}>
-            {/* Swipe the photos the coach is least sure about, then retrain the model you have. */}
-            {photos.length > 1 && (
-              <Pressable style={styles.tuneButton} onPress={() => router.push('/tune')}>
-                <Text style={styles.tuneText}>Tune</Text>
-              </Pressable>
-            )}
-            {toReview > 0 && (
-              <Pressable style={styles.reviewButton} onPress={() => router.push('/review')}>
-                <Text style={styles.reviewText}>Review {toReview}</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-        <RetrainBanner />
-        <View style={styles.replayRow}>
-          <Pressable accessibilityRole="button" onPress={() => restart()} hitSlop={8}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Replay intro
-            </ThemedText>
-          </Pressable>
-          {/* Every onboarding page with a Skip button, for checking the design quickly. */}
-          <Pressable accessibilityRole="button" onPress={() => restart(true)} hitSlop={8}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Preview screens
-            </ThemedText>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/makeup')} hitSlop={8}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Makeup look
-            </ThemedText>
-          </Pressable>
-        </View>
-        {photos.length === 0 ? (
-          <ThemedText style={styles.empty}>
-            Photos you take on the Camera tab show up here.
-          </ThemedText>
-        ) : (
-          <FlatList
-            data={photos}
-            keyExtractor={(p) => p.id}
-            numColumns={COLUMNS}
-            columnWrapperStyle={{ gap: GAP }}
-            contentContainerStyle={{ gap: GAP, paddingBottom: BottomTabInset + Spacing.three }}
-            renderItem={({ item, index }) => (
-              <Pressable onPress={() => setOpenIndex(index)}>
-                <Image
-                  source={{ uri: item.uri }}
-                  style={{ width: size, height: size }}
-                  contentFit="cover"
-                />
-              </Pressable>
-            )}
-          />
-        )}
+        <SectionList
+          sections={sections}
+          keyExtractor={(row) => row[0].id}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            <Text style={styles.empty}>Photos you take on the Camera tab show up here.</Text>
+          }
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ paddingBottom: BottomTabInset + Spacing.four }}
+          renderSectionHeader={({ section }) => <Text style={styles.day}>{section.title}</Text>}
+          renderItem={({ item: row }) => (
+            <View style={styles.row}>
+              {row.map((photo) => (
+                <Pressable
+                  key={photo.id}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open photo"
+                  onPress={() => setOpenIndex(ordered.indexOf(photo))}>
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={[styles.tile, { width: size, height: size }]}
+                    contentFit="cover"
+                  />
+                </Pressable>
+              ))}
+            </View>
+          )}
+        />
       </SafeAreaView>
 
       {openIndex !== null && (
-        <Viewer photos={photos} initialIndex={openIndex} onClose={() => setOpenIndex(null)} />
+        <Viewer photos={ordered} initialIndex={openIndex} onClose={() => setOpenIndex(null)} />
       )}
-    </ThemedView>
+    </View>
   );
 }
 
@@ -196,21 +232,48 @@ function Viewer({
             />
           )}
         />
-        <SafeAreaView style={styles.viewerHud} pointerEvents="box-none">
+        <SafeAreaView style={styles.viewerHud} edges={['top', 'bottom']} pointerEvents="box-none">
           <View style={styles.viewerTop}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back to the gallery"
+              onPress={onClose}
+              hitSlop={8}
+              style={styles.back}>
+              <SymbolView
+                name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+                size={18}
+                weight="semibold"
+                tintColor="#FFFFFF"
+              />
+            </Pressable>
             <Text style={styles.viewerText}>
               {index + 1} / {photos.length}
             </Text>
-            <Pressable style={styles.pill} onPress={onClose}>
-              <Text style={styles.pillText}>Done</Text>
-            </Pressable>
           </View>
-          <View style={styles.viewerBottom}>
-            <Pressable style={styles.pill} onPress={confirmDelete}>
-              <Text style={[styles.pillText, styles.danger]}>Delete</Text>
+          {/* Delete and save as two separate buttons at the bottom. */}
+          <View style={styles.actionFrame}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={confirmDelete}
+              style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
+              <SymbolView
+                name={{ ios: 'trash', android: 'delete', web: 'delete' }}
+                size={18}
+                tintColor="#F87171"
+              />
+              <Text style={[styles.actionText, styles.danger]}>Delete</Text>
             </Pressable>
-            <Pressable style={styles.pill} onPress={save}>
-              <Text style={styles.pillText}>Save to Photos</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={save}
+              style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}>
+              <SymbolView
+                name={{ ios: 'square.and.arrow.down', android: 'download', web: 'download' }}
+                size={18}
+                tintColor="#FFFFFF"
+              />
+              <Text style={styles.actionText}>Save to Photos</Text>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -222,47 +285,94 @@ function Viewer({
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    paddingHorizontal: SIDE,
+    paddingTop: 24,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  titleText: {
+    flexShrink: 1,
+    gap: 4,
+  },
+  title: {
+    color: INK,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  count: {
+    color: MUTED,
+    fontSize: 16,
   },
   headerButtons: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: 8,
+    paddingTop: 4,
   },
-  tuneButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  outlineButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: '#3DDC84',
+    borderColor: INK,
   },
-  tuneText: {
-    color: '#3DDC84',
-    fontWeight: '700',
+  outlineText: {
+    color: INK,
+    fontWeight: '600',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-  },
-  replayRow: {
-    flexDirection: 'row',
-    gap: Spacing.four,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  reviewButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+  inkButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#3DDC84',
+    backgroundColor: INK,
   },
-  reviewText: {
-    color: '#0B2E19',
-    fontWeight: '700',
+  inkText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  links: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  link: {
+    color: MUTED,
+    fontSize: 13,
+  },
+  day: {
+    color: MUTED,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    paddingHorizontal: SIDE,
+    paddingTop: 20,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: GAP,
+    paddingHorizontal: SIDE,
+    marginBottom: GAP,
+  },
+  tile: {
+    backgroundColor: '#EEE9E6',
   },
   empty: {
-    paddingHorizontal: Spacing.three,
+    color: MUTED,
+    fontSize: 16,
+    paddingHorizontal: SIDE,
+    paddingTop: 16,
   },
   viewer: {
     flex: 1,
@@ -278,25 +388,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.three,
   },
-  viewerBottom: {
+  back: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionFrame: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: Spacing.three,
+    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 40,
+  },
+  action: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 999,
+    backgroundColor: 'rgba(30,30,30,0.85)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  actionPressed: {
+    backgroundColor: 'rgba(60,60,60,0.9)',
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   viewerText: {
     color: '#fff',
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
-  },
-  pill: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-  },
-  pillText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   danger: {
     color: '#F87171',

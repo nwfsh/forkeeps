@@ -90,7 +90,7 @@ export function MakeupLookScreen({ doneLabel, onDone }: { doneLabel: string; onD
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 32 },
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 },
         ]}>
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={12}>
@@ -164,7 +164,10 @@ export function MakeupLookScreen({ doneLabel, onDone }: { doneLabel: string; onD
           )}
         </View>
 
-        <PillButton label={look ? doneLabel : 'Skip for now'} onPress={onDone} disabled={busy} />
+        {/* Kept at the bottom of the screen, below the card. */}
+        <View style={styles.footer}>
+          <PillButton label={look ? doneLabel : 'Skip for now'} onPress={onDone} disabled={busy} />
+        </View>
       </ScrollView>
     </View>
   );
@@ -188,8 +191,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     gap: 20,
+  },
+  footer: {
+    marginTop: 'auto',
   },
   topBar: {
     minHeight: 44,

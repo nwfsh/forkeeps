@@ -89,7 +89,7 @@ export default function ResultsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 },
+          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
         ]}>
         <Text style={styles.title}>Your profile</Text>
 
@@ -130,7 +130,10 @@ export default function ResultsScreen() {
               <Text style={styles.noteText}>Record and pick your favourites to build one.</Text>
             </>
           )}
+        </View>
 
+        {/* Pushed to the bottom of the screen, below the card. */}
+        <View style={styles.footer}>
           <PillButton label="Continue" onPress={() => router.push('/onboarding/voice')} />
           <Pressable
             accessibilityRole="button"
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     gap: 24,
   },
@@ -177,7 +181,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   groups: {
-    gap: 24,
+    gap: 14,
   },
   group: {
     gap: 8,
@@ -221,9 +225,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  footer: {
+    marginTop: 'auto',
+    gap: 16,
+  },
   again: {
     alignSelf: 'center',
-    marginTop: -12,
   },
   againText: {
     color: MUTED,

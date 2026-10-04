@@ -5,7 +5,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboarding } from '@/components/onboarding-provider';
-import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
+import {
+  GradientBackground,
+  INK,
+  MUTED,
+  PillButton,
+  StepDots,
+} from '@/components/onboarding-style';
 
 // Where things sit, as a share of the screen height, like the welcome screen.
 const HERO_TOP = '24%';
@@ -36,6 +42,10 @@ export default function CameraAccessScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>Back</Text>
         </Pressable>
+        {/* Filming is step 2 of 3 (name, film, compare); this page leads into it. */}
+        <View style={styles.steps}>
+          <StepDots step={2} steps={3} />
+        </View>
       </View>
 
       <View style={styles.hero}>
@@ -78,6 +88,9 @@ const styles = StyleSheet.create({
   },
   topBar: {
     paddingHorizontal: 24,
+  },
+  steps: {
+    marginTop: 16,
   },
   back: {
     color: INK,

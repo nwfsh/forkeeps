@@ -52,8 +52,13 @@ export default function VoiceScreen() {
   const playCount = sample?.uri ? sample.play : 0;
   useEffect(() => {
     if (!loaded || !playCount) return;
-    player.seekTo(0);
-    player.play();
+    try {
+      player.seekTo(0);
+      player.play();
+    } catch (e) {
+      // iOS can refuse to start audio (e.g. another app holds it); the sample just doesn't play.
+      console.warn("Couldn't play the sample:", e);
+    }
   }, [loaded, playCount, player]);
 
   async function play(persona: Persona) {

@@ -1,7 +1,14 @@
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 
-import { downloadClip, fetchPersonas, GOOD_CLIP, loadVoiceChoice, saveVoiceChoice, type Persona } from '@/lib/voice';
+import {
+  downloadClip,
+  fetchPersonas,
+  GOOD_CLIP,
+  loadVoiceChoice,
+  saveVoiceChoice,
+  type Persona,
+} from '@/lib/voice';
 
 /** A tip has to hold this long before it's spoken, so a flickering result doesn't chatter. */
 const HOLD_MS = 1000;
@@ -90,8 +97,16 @@ export function useVoiceCoach(
       const now = Date.now();
       if (loading.current) {
         // Asking a line to play before it has loaded can be ignored, so wait for it.
-        if (player.isLoaded) player.play();
-        else if (now - loading.current < LOAD_MS) return;
+        if (player.isLoaded) {
+          try {
+            player.play();
+          } catch (e) {
+            // iOS can refuse to start audio ("Session activation failed"), e.g. with the app in
+            // the background or another app holding the audio; that line is just skipped.
+            queue.current = [];
+            console.warn("Couldn't play the coach's voice:", e);
+          }
+        } else if (now - loading.current < LOAD_MS) return;
         loading.current = 0;
         return;
       }
