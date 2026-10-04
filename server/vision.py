@@ -565,45 +565,50 @@ def red_flags(faces: list[dict], people: list[dict]) -> list[str]:
 
 
 def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
-    """Basic framing checks, most important first. The personalised ranking replaces this later."""
+    """Basic framing checks, most important first. The personalised ranking replaces this later.
+
+    Each warning's clip names the line the coach's voices say for it (see personas.CLIPS).
+    """
     if not faces and not people:
-        return [{"code": "no_person", "message": "I can't see anyone"}]
+        return [{"code": "no_person", "clip": "no_person", "message": "I can't see anyone"}]
 
     warnings = []
     cut = [f for f in faces if f["cut_off"]]
     if cut:
         side = edge_side(cut[0]["bbox"])
         who = "Someone is" if len(faces) > 1 else "You're"
-        warnings.append({"code": "cut_off", "message": f"{who} cut off on the {side}"})
+        warnings.append({"code": "cut_off", "clip": f"cut_off_{side}", "message": f"{who} cut off on the {side}"})
 
     light = max(faces, key=lambda f: f["bbox"]["h"]).get("lighting", {}) if faces else {}
     if (light.get("backlight") or 0) > BACKLIT:
-        warnings.append({"code": "backlit", "message": "The light is behind you: turn to face it"})
+        warnings.append({"code": "backlit", "clip": "backlit", "message": "The light is behind you: turn to face it"})
     elif light.get("brightness", 1) < TOO_DARK:
-        warnings.append({"code": "too_dark", "message": "Your face is too dark: turn toward the light"})
+        warnings.append({"code": "too_dark", "clip": "too_dark",
+                         "message": "Your face is too dark: turn toward the light"})
     if light.get("blown_out", 0) > TOO_MUCH_BLOWN_OUT:
-        warnings.append({"code": "blown_out", "message": "Too much direct light on your face: find some shade"})
+        warnings.append({"code": "blown_out", "clip": "blown_out",
+                         "message": "Too much direct light on your face: find some shade"})
 
     if len(people) == 1:
         person = people[0]
         if person["cut_at_joint"]:
-            warnings.append({"code": "cut_at_joint",
+            warnings.append({"code": "cut_at_joint", "clip": f"cut_at_joint_{person['cut_at_joint']}",
                              "message": f"The frame cuts right at your {person['cut_at_joint']}"})
         if person.get("looking_room", 1) < LOOKING_ROOM:
-            warnings.append({"code": "looking_room",
+            warnings.append({"code": "looking_room", "clip": f"looking_room_{person['facing']}",
                              "message": f"Leave more space on the {person['facing']}, where you're looking"})
 
     # No "move closer": waist-up and full-body shots are deliberate, so a small face isn't a mistake.
     if len(faces) == 1 and faces[0]["bbox"]["h"] > TOO_CLOSE:
-        warnings.append({"code": "too_close", "message": "Step back a little"})
+        warnings.append({"code": "too_close", "clip": "too_close", "message": "Step back a little"})
 
     # Softer lighting advice comes last: a shadowed side can be a deliberate contour.
     if abs(light.get("contour", 0)) > HARSH_SIDE_SHADOW:
         lit = "right" if light["contour"] > 0 else "left"
-        warnings.append({"code": "side_shadow",
+        warnings.append({"code": "side_shadow", "clip": f"side_shadow_{lit}",
                          "message": f"Half your face is in shadow: turn a little toward the light on the {lit}"})
     if light.get("under_eye_shadow", 0) > DARK_UNDER_EYES:
-        warnings.append({"code": "under_eye_shadow",
+        warnings.append({"code": "under_eye_shadow", "clip": "under_eye_shadow",
                          "message": "Overhead light is shadowing your eyes: lift your chin or face a window"})
     return warnings
 

@@ -8,6 +8,8 @@ import { analyzeFrame, type Analysis } from '@/lib/server';
 const FRAME_WIDTH = 480;
 /** Minimum gap between frames, so the phone isn't flat out. */
 const MIN_INTERVAL_MS = 150;
+/** Longest a snapshot or an upload may take before the loop gives up on it and tries again. */
+const STEP_TIMEOUT_MS = 5000;
 
 export type FrameAnalysisState = {
   analysis: Analysis | null;
@@ -49,11 +51,26 @@ export function useFrameAnalysis(cameraRef: RefObject<CameraView | null>, enable
         const started = Date.now();
         try {
           if (cameraRef.current && !busyRef.current) {
-            const pending = snapshot(cameraRef.current);
+            const pending = withTimeout(snapshot(cameraRef.current), 'Taking the snapshot');
             snapshotRef.current = pending.catch(() => {});
             const uri = await pending;
             if (cancelled) return;
-            const analysis = await analyzeFrame(uri, controller.signal);
+            // Each upload gets its own timeout; unmounting still aborts it.
+            const request = new AbortController();
+            const abort = () => request.abort();
+            controller.signal.addEventListener('abort', abort);
+            const timer = setTimeout(abort, STEP_TIMEOUT_MS);
+            let analysis: Analysis;
+            try {
+              analysis = await analyzeFrame(uri, request.signal);
+            } catch (e) {
+              throw request.signal.aborted && !controller.signal.aborted
+                ? new Error('Uploading the frame timed out')
+                : e;
+            } finally {
+              clearTimeout(timer);
+              controller.signal.removeEventListener('abort', abort);
+            }
             if (cancelled) return;
 
             const now = Date.now();
@@ -89,6 +106,23 @@ async function snapshot(camera: CameraView): Promise<string> {
     .renderAsync();
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
   return saved.uri;
+}
+
+/** Rejects if the promise hasn't settled within STEP_TIMEOUT_MS, naming the step. */
+function withTimeout<T>(promise: Promise<T>, step: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${step} timed out`)), STEP_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function sleep(ms: number) {
