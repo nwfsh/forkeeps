@@ -1,0 +1,660 @@
+{
+ "person": "avery",
+ "round": 1,
+ "saved": "2026-10-04T09:27:27+00:00",
+ "features": [
+  "eye_contact",
+  "smile",
+  "teeth_shown",
+  "chin_up",
+  "left_side",
+  "chin_up_curve",
+  "left_side_curve"
+ ],
+ "results": {
+  "test_picks_agreed": 0.7,
+  "training_picks_held_out": 0.697,
+  "training_picks_used": 33,
+  "test_picks_used": 20
+ },
+ "learned": [
+  {
+   "feature": "teeth_shown",
+   "prefers": "Teeth showing, less of it",
+   "share": 0.27033019151671017,
+   "weight": -0.8200826439326855
+  },
+  {
+   "feature": "chin_up",
+   "prefers": "Chin down",
+   "share": 0.26661533400227283,
+   "weight": -0.8088131288438217
+  },
+  {
+   "feature": "left_side",
+   "prefers": "Your right side toward the camera",
+   "share": 0.21387475535116768,
+   "weight": -0.6488175584634985
+  },
+  {
+   "feature": "smile",
+   "prefers": "Smiling, more of it",
+   "share": 0.10550501669903128,
+   "weight": 0.32006352141897326
+  },
+  {
+   "feature": "eye_contact",
+   "prefers": "Looking at the camera, more of it",
+   "share": 0.06835585769870131,
+   "weight": 0.20736659932552243
+  },
+  {
+   "feature": "left_side_curve",
+   "prefers": "Face turn sweet spot: a best angle in between",
+   "share": 0.04930974131866839,
+   "weight": -0.149587668345031
+  },
+  {
+   "feature": "chin_up_curve",
+   "prefers": "Chin angle sweet spot: a best angle in between",
+   "share": 0.02600910341344817,
+   "weight": -0.07890207961584914
+  }
+ ],
+ "best_angles": {
+  "chin_up": null,
+  "left_side": null
+ },
+ "training_picks": [
+  {
+   "winner": "data/training-recognition/avery/IMG_0108.JPG",
+   "loser": "data/training-recognition/avery/IMG_0118 2.JPG",
+   "model_agreed": null,
+   "at": "2026-10-04T01:32:32+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0108.JPG",
+   "loser": "data/training-recognition/avery/IMG_0106.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:32:43+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0114 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:32:52+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0131 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0112 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:32:55+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0135.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:32:57+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:33:01+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0135.JPG",
+   "loser": "data/training-recognition/avery/IMG_0139.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:33:09+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0105.JPG",
+   "loser": "data/training-recognition/avery/IMG_0135.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:33:22+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0133.JPG",
+   "loser": "data/training-recognition/avery/IMG_0141.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:33:37+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0127 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0122 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:33:48+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0108.JPG",
+   "loser": "data/training-recognition/avery/IMG_0105.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:33:52+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0126 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:33:55+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0124 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0125 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:34:08+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0121 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0111.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:34:10+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0107.JPG",
+   "loser": "data/training-recognition/avery/IMG_0117 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:34:15+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0105.JPG",
+   "loser": "data/training-recognition/avery/IMG_0140.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:34:49+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0121 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0142.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:08+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0117 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0118 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:11+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0107.JPG",
+   "loser": "data/training-recognition/avery/IMG_0104.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:14+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0133.JPG",
+   "loser": "data/training-recognition/avery/IMG_0136.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:18+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0116 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:22+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0127 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:24+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0135.JPG",
+   "loser": "data/training-recognition/avery/IMG_0109.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:34+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0128 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0135.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:36+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0126 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0134.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:38+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0113 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:40+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0110.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:36:42+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0133.JPG",
+   "loser": "data/training-recognition/avery/IMG_0140.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:50+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0122 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0140.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:36:54+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0104.JPG",
+   "loser": "data/training-recognition/avery/IMG_0137.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:39:42+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0114 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:39:44+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0139.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:39:46+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0125 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0115 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:39:51+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0125 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:39:53+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0123 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0122 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:39:56+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0134.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:39:58+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0124 2.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T01:40:01+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0134.JPG",
+   "loser": "data/training-recognition/avery/IMG_0128 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:40:09+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0122 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0114 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:40:11+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/IMG_0129 2.JPG",
+   "loser": "data/training-recognition/avery/IMG_0120 2.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T01:40:13+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0342.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0349.JPG",
+   "model_agreed": null,
+   "at": "2026-10-04T02:43:47+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0321.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0357.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:43:49+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0320.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0353.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:43:52+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0345.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0336.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:43:55+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0322.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0359.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:43:59+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0346.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0322.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:44:03+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0351.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0340.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:44:08+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0346.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0353.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:44:30+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0336.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0356.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:44:39+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0320.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0344.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:44:42+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0322.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0329.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:44:49+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0330.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0331.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:44:54+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0337.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0347.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:45:40+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0329.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0354.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:45:44+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0348.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0340.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:45:46+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0330.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0337.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:45:49+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0350.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0332.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:45:56+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0327.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0328.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:45:59+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0348.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0350.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:46:03+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0351.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0342.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:46:05+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0345.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0330.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:48:13+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0321.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0331.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:48:17+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0351.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0326.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:51:04+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0346.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0352.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:08+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0336.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0359.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:11+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0326.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0338.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:17+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0359.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0354.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:20+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0330.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0360.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:22+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0331.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0354.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:24+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0329.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0335.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:51:32+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0326.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0331.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:52:46+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0322.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0324.JPG",
+   "model_agreed": false,
+   "at": "2026-10-04T02:52:55+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/training_data/IMG_0328.JPG",
+   "loser": "data/training-recognition/avery/training_data/IMG_0332.JPG",
+   "model_agreed": true,
+   "at": "2026-10-04T02:53:04+00:00"
+  }
+ ],
+ "test_picks": [
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0294.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0267.JPG",
+   "at": "2026-10-04T04:59:19+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0271.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0285.JPG",
+   "at": "2026-10-04T04:59:20+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0291.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0266.JPG",
+   "at": "2026-10-04T04:59:22+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0282.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0275.JPG",
+   "at": "2026-10-04T04:59:24+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0289.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0266.JPG",
+   "at": "2026-10-04T04:59:27+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0278.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0284.JPG",
+   "at": "2026-10-04T04:59:28+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0278.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0264.JPG",
+   "at": "2026-10-04T04:59:30+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0298.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0283.JPG",
+   "at": "2026-10-04T04:59:35+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0294.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0270.JPG",
+   "at": "2026-10-04T04:59:38+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0289.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0264.JPG",
+   "at": "2026-10-04T04:59:40+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0416.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0373.JPG",
+   "at": "2026-10-04T06:35:41+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0415.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0382.JPG",
+   "at": "2026-10-04T06:35:50+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0380.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0428.JPG",
+   "at": "2026-10-04T06:35:53+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0385.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0405.JPG",
+   "at": "2026-10-04T06:35:57+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0435.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0419.JPG",
+   "at": "2026-10-04T06:35:59+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0374.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0428.JPG",
+   "at": "2026-10-04T06:36:01+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0422.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0396.JPG",
+   "at": "2026-10-04T06:36:11+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0406.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0414.JPG",
+   "at": "2026-10-04T06:36:13+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0390.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0397.JPG",
+   "at": "2026-10-04T06:36:15+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0377.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0383.JPG",
+   "at": "2026-10-04T06:36:17+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0410.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0379.JPG",
+   "at": "2026-10-04T06:37:34+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0427.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0397.JPG",
+   "at": "2026-10-04T06:37:38+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0425.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0405.JPG",
+   "at": "2026-10-04T06:37:39+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0413.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0380.JPG",
+   "at": "2026-10-04T06:37:41+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0382.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0433.JPG",
+   "at": "2026-10-04T06:37:44+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0380.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0436.JPG",
+   "at": "2026-10-04T06:37:46+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0421.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0384.JPG",
+   "at": "2026-10-04T06:37:50+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0382.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0379.JPG",
+   "at": "2026-10-04T06:37:53+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0391.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0402.JPG",
+   "at": "2026-10-04T06:38:33+00:00"
+  },
+  {
+   "winner": "data/training-recognition/avery/testing_data/IMG_0398.JPG",
+   "loser": "data/training-recognition/avery/testing_data/IMG_0393.JPG",
+   "at": "2026-10-04T06:38:36+00:00"
+  }
+ ]
+}

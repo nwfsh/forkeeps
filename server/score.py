@@ -15,7 +15,7 @@ import vision
 from ranker import photo_features
 
 WEIGHTS_FOLDER = Path(__file__).resolve().parent / "preferences" / "weights"
-PHOTO_TYPES = {".jpg", ".jpeg", ".png"}
+PHOTO_TYPES = {".jpg", ".jpeg", ".png", ".heic"}
 # Chance of beating an average photo above or below which a photo is a likely pick or skip.
 LIKELY_PICK = 0.6
 LIKELY_SKIP = 0.4

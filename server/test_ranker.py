@@ -62,9 +62,9 @@ def test_learns_a_feature_they_dislike():
 
 
 def test_ranks_two_priorities_above_the_rest():
-    ranker = simulate(made_up_photos(60), lambda f: 2 * f["eyes_open"] + f["sharpness"], rounds=60)
+    ranker = simulate(made_up_photos(60), lambda f: 2 * f["eye_contact"] + f["chin_up"], rounds=60)
     order = [row["feature"] for row in ranker.priorities()]
-    assert order[:2] == ["eyes_open", "sharpness"]
+    assert order[:2] == ["eye_contact", "chin_up"]
 
 
 def test_scores_order_photos_by_taste():
@@ -92,9 +92,9 @@ def test_no_choices_means_no_priorities():
 def test_feature_same_in_every_photo_is_flagged():
     photos = made_up_photos(10)
     for features in photos.values():
-        features["facing_camera"] = 1.0
+        features["left_side"] = 1.0
     rows = {row["feature"]: row for row in Ranker(photos).priorities()}
-    assert not rows["facing_camera"]["varies"]
+    assert not rows["left_side"]["varies"]
     assert rows["smile"]["varies"]
 
 

@@ -20,7 +20,7 @@ from ranker import CLEAR, LIKELY, MAX_CHOICES, MIN_CHOICES, RECENT_GUESSES, Rank
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_FOLDER = REPO / "data" / "training-recognition"
 WEIGHTS_FOLDER = Path(__file__).resolve().parent / "preferences" / "weights"
-PHOTO_TYPES = {".jpg", ".jpeg", ".png"}
+PHOTO_TYPES = {".jpg", ".jpeg", ".png", ".heic"}
 # Subfolder of held-back photos the weights are tested on, never compared.
 HELD_OUT = "testing_data"
 PREVIEW_WIDTH = 700
@@ -175,6 +175,11 @@ def save_weights(person: str, picks: int, confidence: float) -> Path:
     return path
 
 
+def preference_for(feature: str) -> str:
+    """The learned preference for one feature, in words."""
+    return next(p["prefers"] for p in ranker.priorities() if p["feature"] == feature)
+
+
 def show_comparison() -> None:
     count = len(choices)
     if stop is not None:
@@ -250,6 +255,21 @@ def show_results() -> None:
     st.subheader("You tend to pick photos with…")
     for _, row in rows.head(SHOWN_PRIORITIES).iterrows():
         st.markdown(f"- **{row['prefers']}**")
+
+    ideal = ranker.ideal_angles()
+    if ideal:
+        st.subheader("Your best angles")
+        words = {"chin_up": ("Chin", "up", "down"), "left_side": ("Face turned to show your", "left side", "right side")}
+        for feature, degrees in ideal.items():
+            what, positive, negative = words[feature]
+            if degrees is None:
+                st.markdown(f"- **{what}**: no best angle in between yet; "
+                            f"{preference_for(feature).lower()} so far")
+            else:
+                st.markdown(f"- **{what} about {abs(degrees):.0f}° "
+                            f"{positive if degrees > 0 else negative}** is your sweet spot")
+        st.caption("Angles are relative to the camera. Each comes from the curve the model fits to your "
+                   "picks, so it firms up as you make more.")
 
     st.subheader(f"Top {DETAIL_BARS} details")
     chart = alt.Chart(rows.head(DETAIL_BARS)).mark_bar(color=BAR_COLOUR, cornerRadiusEnd=4, size=14).encode(

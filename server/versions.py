@@ -19,7 +19,7 @@ from ranker import FEATURES, Ranker, photo_features
 
 REPO = Path(__file__).resolve().parent.parent
 DATA = REPO / "data" / "training-recognition"
-PHOTO_TYPES = {".jpg", ".jpeg", ".png"}
+PHOTO_TYPES = {".jpg", ".jpeg", ".png", ".heic"}
 PREVIEW_WIDTH = 300
 
 

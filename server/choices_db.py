@@ -42,6 +42,15 @@ CREATE TABLE IF NOT EXISTS weights (
     data       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS weights_by_person ON weights (person, id);
+-- Picks between held-back test photos, made the same way as training picks. Only ever used to
+-- check how well someone's learned weights match their taste, never to train them.
+CREATE TABLE IF NOT EXISTS test_choices (
+    id     INTEGER PRIMARY KEY,
+    person TEXT NOT NULL,
+    winner TEXT NOT NULL,
+    loser  TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
 """
 
 
@@ -125,6 +134,36 @@ def weights_history(name: str) -> list[dict]:
         rows = conn.execute("SELECT * FROM weights WHERE person = ? ORDER BY id", (person_key(name),))
         return [{"saved_at": r["saved_at"], "picks": r["picks"], "confidence": r["confidence"],
                  **json.loads(r["data"])} for r in rows]
+
+
+def add_test_choice(name: str, winner: str, loser: str) -> None:
+    """Record a pick between two test photos."""
+    with closing(connect()) as conn, conn:
+        conn.execute("INSERT INTO test_choices (person, winner, loser, at) VALUES (?, ?, ?, ?)",
+                     (person_key(name), winner, loser, datetime.now(timezone.utc).isoformat(timespec="seconds")))
+
+
+def load_test_choices(name: str) -> list[dict]:
+    """Someone's picks between test photos, oldest first."""
+    with closing(connect()) as conn:
+        rows = conn.execute("SELECT * FROM test_choices WHERE person = ? ORDER BY id", (person_key(name),))
+        return [{"winner": r["winner"], "loser": r["loser"], "at": r["at"]} for r in rows]
+
+
+def clear_test_choices(name: str) -> int:
+    """Delete all of someone's test picks. Returns how many there were."""
+    with closing(connect()) as conn, conn:
+        return conn.execute("DELETE FROM test_choices WHERE person = ?", (person_key(name),)).rowcount
+
+
+def remove_last_test_choice(name: str) -> Optional[dict]:
+    """Delete and return someone's most recent test pick, or None if they have none."""
+    with closing(connect()) as conn, conn:
+        row = conn.execute("SELECT * FROM test_choices WHERE person = ? ORDER BY id DESC LIMIT 1",
+                           (person_key(name),)).fetchone()
+        if row:
+            conn.execute("DELETE FROM test_choices WHERE id = ?", (row["id"],))
+    return {"winner": row["winner"], "loser": row["loser"], "at": row["at"]} if row else None
 
 
 def import_json(folder: Path = PREFERENCES) -> dict[str, int]:

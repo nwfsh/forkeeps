@@ -46,9 +46,36 @@ FEATURES = {
     "backlit": "Background brighter than the face",
     "blown_out": "Blown-out highlights on the skin",
     "warm_light": "Warm-coloured light",
+    "lip_colour": "Lip colour standing out from the skin",
+    "blush": "Blush on the cheeks",
+    "contour_depth": "Contour under the cheekbones",
+    "jaw_definition": "Defined jawline",
+    "cheekbone_highlight": "Highlighted cheekbones",
+    "v_line": "V-line face (narrow jaw for the cheekbones)",
+    "chin_taper": "Tapered chin",
+    "long_face": "Longer-looking face",
+    "symmetry": "Symmetrical-looking face",
+    "under_chin_fold": "Fold under the chin",
+    "eye_opening": "Eyes open wide",
+    "uneven_eyes": "One eye more closed than the other",
+    "teeth_shown": "Teeth showing",
+    "gummy": "Gums showing above the teeth",
+    "shine": "Shiny skin",
+    "hand_over_face": "A hand covering part of the face",
+    "head_tilt": "Head tilted toward the left shoulder",
+    "chin_up_curve": "Chin angle sweet spot",
+    "left_side_curve": "Face turn sweet spot",
 }
+# Angle features paired with a squared copy, so the ranker can learn a best angle with worse on
+# either side of it, not just "the more the better". Feature -> its squared copy.
+CURVES = {"chin_up": "chin_up_curve", "left_side": "left_side_curve"}
 LIGHTING_FEATURES = ("bright_face", "light_contrast", "contour", "under_eye_shadow", "top_light",
                      "backlit", "blown_out", "warm_light")
+COLOUR_FEATURES = ("lip_colour", "blush", "contour_depth", "jaw_definition", "cheekbone_highlight")
+# Measured from the face points and pixels in vision.face_shape(); they describe how the face
+# looks in that photo, compared only with the same person's other photos.
+SHAPE_FEATURES = ("v_line", "chin_taper", "long_face", "symmetry", "under_chin_fold", "eye_opening",
+                  "uneven_eyes", "teeth_shown", "gummy", "shine")
 
 
 
@@ -76,12 +103,38 @@ REGIONS = {
     "facing_camera": "Body angle", "upright": "Posture", "long_neck": "Posture",
     "arms_away": "Posture", "hand_raised": "Posture",
     **dict.fromkeys(LIGHTING_FEATURES, "Lighting"),
+    **dict.fromkeys(COLOUR_FEATURES, "Makeup and colour"),
+    "v_line": "Face shape", "chin_taper": "Face shape", "long_face": "Face shape",
+    "symmetry": "Face shape", "under_chin_fold": "Face shape", "eye_opening": "Eyes",
+    "uneven_eyes": "Eyes", "teeth_shown": "Mouth", "gummy": "Mouth", "shine": "Skin",
+    "hand_over_face": "Hands", "head_tilt": "Head angle",
+    "chin_up_curve": "Head angle", "left_side_curve": "Head angle",
     **{f"expr_{name}": expression_region(name) for name in EXPRESSIONS},
 }
+# Every feature that can be measured. Only ACTIVE_FEATURES are learned from; the rest stay
+# measured (for the viewer and coaching) and can be switched back on by adding them here.
+ALL_FEATURES = FEATURES
+ACTIVE_FEATURES = (
+    "eye_contact",    # eyes on the lens or not
+    "smile",          # smiling or not
+    "teeth_shown",    # a smile with teeth or without
+    "chin_up",        # chin up or down
+    "left_side",      # face turned to show the left or right side
+    "chin_up_curve",  # lets it learn a best chin angle
+    "left_side_curve",  # lets it learn a best face turn
+    # Posture, off for now:
+    # "upright",
+    # "long_neck",
+    # "arms_away",
+    # "hand_raised",
+)
+FEATURES = {name: ALL_FEATURES[name] for name in ACTIVE_FEATURES}
+
 # Features with a direction rather than an amount: what a positive and a negative weight prefer.
 SIDES = {
     "left_side": ("Your left side toward the camera", "Your right side toward the camera"),
     "chin_up": ("Chin up", "Chin down"),
+    "head_tilt": ("Head tilted toward your left shoulder", "Head tilted toward your right shoulder"),
 }
 # Head turn and chin angle are divided by this, so a quarter turn scores 1.
 QUARTER_TURN = 90
@@ -130,6 +183,12 @@ def photo_features(result: dict) -> dict[str, Optional[float]]:
     pose = face.get("pose") if face else None
     # Older results have no lighting; those photos count as average on every lighting feature.
     light = face.get("lighting", {}) if face else {}
+    colour = face.get("colour", {}) if face else {}
+    shape = face.get("shape", {}) if face else {}
+
+    def flipped(value: Optional[float]) -> Optional[float]:
+        """So that higher always means more of the named thing (a narrower jaw is more V-line)."""
+        return None if value is None else -value
     person = result["people"][0] if result["people"] else None
     # Posture fields are newer than the rest, so results without them still work.
     body = person or {}
@@ -156,10 +215,13 @@ def photo_features(result: dict) -> dict[str, Optional[float]]:
         "long_neck": body.get("neck_length"),
         "arms_away": body.get("arm_gap"),
         "hand_raised": None if body.get("hand_raised") is None else float(body["hand_raised"]),
+        "hand_over_face": None if face is None else face.get("hand_over_face"),
         # Negative yaw turns the head toward the image's left, which shows the camera
         # the person's left cheek; negative pitch is chin up. Checked on our own photos.
         "left_side": None if pose is None else -pose["yaw"] / QUARTER_TURN,
         "chin_up": None if pose is None else -pose["pitch"] / QUARTER_TURN,
+        # Positive roll tilts the head toward the person's left shoulder. Checked on our own photos.
+        "head_tilt": None if pose is None else pose["roll"] / QUARTER_TURN,
         "bright_face": light.get("brightness"),
         "light_contrast": light.get("contrast"),
         # Which side is lit mostly follows which way the head is turned, so only the amount counts.
@@ -170,12 +232,36 @@ def photo_features(result: dict) -> dict[str, Optional[float]]:
         "blown_out": light.get("blown_out"),
         "warm_light": light.get("warmth"),
     }
+    features.update({curve: None if features.get(name) is None else features[name] ** 2
+                     for name, curve in CURVES.items()})
+    features.update({name: colour.get(name) for name in COLOUR_FEATURES})
+    features.update({
+        "v_line": flipped(shape.get("jaw_to_cheekbones")),
+        "chin_taper": flipped(shape.get("chin_to_jaw")),
+        "long_face": shape.get("face_length"),
+        "symmetry": flipped(shape.get("asymmetry")),
+        "under_chin_fold": shape.get("under_chin_fold"),
+        "eye_opening": shape.get("eye_opening"),
+        "uneven_eyes": shape.get("uneven_eyes"),
+        "teeth_shown": shape.get("teeth_shown"),
+        "gummy": shape.get("gummy"),
+        "shine": shape.get("shine"),
+    })
     features.update({f"expr_{name}": expressions.get(name) for name in EXPRESSIONS})
     return features
 
 
 def preference(feature: str, label: str, weight: float) -> str:
-    """What a weight says the person prefers, e.g. "Chin down" or "Smiling, less of it"."""
+    """What a weight says the person prefers, e.g. "Chin down" or "Smiling, less of it".
+
+    A curve's weight says whether there's a best angle in between (negative) or not.
+    """
+    if feature in CURVES.values():
+        return f"{label}: {'a best angle in between' if weight < 0 else 'one extreme or the other'}"
+    return _preference(feature, label, weight)
+
+
+def _preference(feature: str, label: str, weight: float) -> str:
     if feature in SIDES:
         return SIDES[feature][0 if weight > 0 else 1]
     return f"{label}, {'more' if weight > 0 else 'less'} of it"
@@ -187,7 +273,9 @@ class Ranker:
     def __init__(self, features: dict[str, dict[str, Optional[float]]]):
         self.photos = list(features)
         self.index = {photo: i for i, photo in enumerate(self.photos)}
-        raw = np.array([[np.nan if features[p][name] is None else features[p][name]
+        # A feature a photo has no value for (or one measured before the feature existed)
+        # counts as missing, like one that couldn't be measured.
+        raw = np.array([[np.nan if features[p].get(name) is None else features[p][name]
                          for name in FEATURES] for p in self.photos], dtype=float)
         # Standardise so weights compare across features. A missing value becomes the
         # average, so it neither helps nor hurts a photo.
@@ -267,6 +355,15 @@ class Ranker:
                 for (name, label), w, varies in zip(FEATURES.items(), self.weights, self.varies)]
         return sorted(rows, key=lambda r: r["share"], reverse=True)
 
+    def score_new(self, features: dict[str, Optional[float]]) -> float:
+        """Score a photo the ranker wasn't built on, on the same scale as its own photos.
+
+        A missing feature counts as the training photos' average, as it does for them.
+        """
+        x = np.array([self.mean[i] if features.get(name) is None else features[name]
+                      for i, name in enumerate(FEATURES)], dtype=float)
+        return float(self.weights @ ((x - self.mean) / self.std))
+
     def region_shares(self, weights: Optional[np.ndarray] = None) -> dict[str, float]:
         """Each region's share of how much the score varies between photos.
 
@@ -295,6 +392,25 @@ class Ranker:
             agree += max(resampled, key=resampled.get) == top
         return agree / RESAMPLES
 
+    def ideal_angles(self) -> dict[str, Optional[float]]:
+        """The best angle in degrees for each curved feature, or None when there isn't one in between.
+
+        Each angle feature x (a quarter turn is 1) adds a*(x - m1)/s1 + b*(x^2 - m2)/s2 to a
+        photo's score; when b < 0 that peaks at x = -(a/s1) * s2 / (2 * b), and an x outside
+        what the photos showed is no peak either, just "further is better".
+        """
+        names = list(FEATURES)
+        ideals = {}
+        for straight, curve in CURVES.items():
+            if straight not in names or curve not in names:
+                continue
+            i, j = names.index(straight), names.index(curve)
+            a, b = self.weights[i] / self.std[i], self.weights[j] / self.std[j]
+            seen = self.x[:, i] * self.std[i] + self.mean[i]
+            peak = -a / (2 * b) if b < 0 else None
+            ideals[straight] = round(peak * QUARTER_TURN, 1) if peak is not None and seen.min() <= peak <= seen.max() else None
+        return ideals
+
     def export(self) -> dict:
         """Everything needed to score a new photo with these weights, as plain JSON-ready data.
 
@@ -303,6 +419,7 @@ class Ranker:
         """
         return {
             "regions": self.region_shares(),
+            "ideal_angles": self.ideal_angles(),
             "priorities": [{k: r[k] for k in ("feature", "region", "prefers", "share", "weight")}
                            for r in self.priorities() if r["varies"]],
             "weights": dict(zip(FEATURES, map(float, self.weights))),

@@ -1,4 +1,5 @@
 import hashlib
+import io
 import math
 import threading
 from pathlib import Path
@@ -8,13 +9,25 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions
+from PIL import Image, ImageOps
+from pillow_heif import register_heif_opener
 from mediapipe.python.solutions import face_mesh_connections as mesh
 from mediapipe.tasks.python import vision
+
+register_heif_opener()
 
 MODEL_PATH = Path(__file__).parent / "models" / "face_landmarker.task"
 # The files whose code decides what a photo's results are.
 ANALYSIS_CODE = ("vision.py", "ranker.py")
 POSE_MODEL_PATH = Path(__file__).parent / "models" / "pose_landmarker_full.task"
+HAND_MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
+# The body model's hand points (wrist, pinky, index, thumb) for each hand. Only a backup for
+# the hand model, which finds 21 points per hand but misses hands blurred by movement; these
+# four only outline part of the hand, so they're spread out by HAND_SPREAD to cover more of it.
+BODY_HAND_POINTS = ((15, 17, 19, 21), (16, 18, 20, 22))
+HAND_SPREAD = 1.3
+# Masks for hand-over-face overlap are drawn at this size on the longer side.
+OVERLAP_SIZE = 400
 
 # A face whose box comes within this fraction of the frame edge counts as cut off.
 EDGE_MARGIN = 0.02
@@ -91,6 +104,45 @@ UNDER_EYE_POINTS = (230, 450)
 FOREHEAD_POINT, CHIN_POINT, NOSE_TIP_POINT = 151, 199, 4
 # Light is averaged over a circle this fraction of the face height around each point.
 LIGHT_PATCH = 0.06
+# Face points whose surrounding colour is measured, per region. Checked by drawing them on our
+# own photos: the cheekbone sits high on the outer cheek, under_cheekbone is where contour
+# makeup goes, and the lip points are on the lips rather than the gap between them.
+COLOUR_POINTS = {
+    "forehead": (151,),
+    "cheekbone": (117, 346),
+    "cheek_apple": (50, 280),
+    "under_cheekbone": (147, 376),
+    "jawline": (136, 365),
+    "under_eyes": (230, 450),
+    "lips": (12, 15),
+}
+# Lips are thin, so they're sampled over a smaller circle than the rest of the face.
+LIP_PATCH = 0.025
+# Face points for face shape, as (image-left, image-right) pairs where paired. Checked by
+# drawing them on our own photos.
+FACE_TOP, CHIN_BOTTOM = 10, 152
+CHEEKBONE_WIDTH = (234, 454)
+JAW_WIDTH = (172, 397)
+CHIN_WIDTH = (150, 379)
+MIDLINE = (10, 168, 1, 152)
+MIRRORED = ((33, 263), (133, 362), (70, 300), (98, 327), (61, 291), (234, 454), (172, 397), (150, 379))
+# Eyelid points for eye opening: (top, bottom) pairs and (outer, inner) corners per eye.
+EYE_LIDS = (((159, 145), (158, 153)), ((386, 374), (385, 380)))
+EYE_CORNERS = ((33, 133), (263, 362))
+# Inner lip outline, in order round the mouth (upper lip left to right, then lower lip back).
+INNER_LIPS = (78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95)
+# Middle of the upper and lower inner lip, and how far apart they must be, as a share of the
+# mouth's width, before the mouth counts as open enough to show teeth.
+UPPER_INNER_LIP, LOWER_INNER_LIP = 13, 14
+MIN_MOUTH_OPENING = 0.08
+# Face shape is only measured this close to facing the camera; past it a turned head
+# changes the widths and fakes asymmetry more than a correction can undo.
+MAX_SHAPE_YAW = 30
+# A pixel this much brighter than the face's median, and nearly colourless, is a shine spot.
+SHINE_ABOVE_MEDIAN = 0.2
+SHINE_MAX_CHROMA = 18
+# The band below the chin searched for a fold, as a fraction of face length.
+UNDER_CHIN_BAND = 0.12
 # Backlight compares the face with everything outside a box this many face widths and heights
 # around it; closer in, hair dominates and reads as a dark background.
 BACKGROUND_CLEARANCE = 2.5
@@ -140,6 +192,13 @@ _pose_retry_landmarker = vision.PoseLandmarker.create_from_options(
         min_pose_presence_confidence=POSE_RETRY_CONFIDENCE,
     )
 )
+_hand_landmarker = vision.HandLandmarker.create_from_options(
+    vision.HandLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=str(HAND_MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
+        num_hands=2,
+    )
+)
 # The landmarker isn't safe to call from several request threads at once.
 _lock = threading.Lock()
 
@@ -155,11 +214,18 @@ def code_version() -> str:
 
 
 def decode_image(data: bytes) -> np.ndarray:
-    """Decode JPEG/PNG bytes to an RGB array, honouring EXIF orientation."""
+    """Decode JPEG/PNG/HEIC bytes to an RGB array, honouring EXIF orientation.
+
+    OpenCV can't read HEIC, the iPhone camera's default format, so that goes through Pillow.
+    """
     bgr = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-    if bgr is None:
-        raise ValueError("could not decode image")
-    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    if bgr is not None:
+        return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            return np.array(ImageOps.exif_transpose(image).convert("RGB"))
+    except (OSError, ValueError) as error:
+        raise ValueError("could not decode image") from error
 
 
 def head_pose(matrix) -> dict:
@@ -238,6 +304,43 @@ def overlap(a: tuple, b: tuple) -> float:
     inter = w * h
     union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
     return inter / union if union else 0.0
+
+
+def hand_over_face(rgb: np.ndarray, face_landmarks: list, body_points: Optional[list]) -> float:
+    """Share of the face that hands cover, from 0 (clear) to 1.
+
+    Hands come from the hand model's 21 points each; the body model's rougher hand points are
+    used too, and the larger overlap counts, so a hand blurred by movement isn't missed.
+    """
+    height, width = rgb.shape[:2]
+    scale = min(1.0, POSE_SIZE / max(height, width))
+    small = cv2.resize(rgb, (round(width * scale), round(height * scale)))
+    with _lock:
+        hands = _hand_landmarker.detect(
+            mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(small))).hand_landmarks
+
+    m = OVERLAP_SIZE / max(height, width)
+    face = np.zeros((int(height * m) + 1, int(width * m) + 1), np.uint8)
+    cv2.fillConvexPoly(face, cv2.convexHull(
+        np.array([[x * width * m, y * height * m] for x, y, _ in face_landmarks], np.int32)), 1)
+    face_area = max(int(face.sum()), 1)
+
+    def covered(outlines: list) -> float:
+        mask = np.zeros_like(face)
+        for outline in outlines:
+            cv2.fillConvexPoly(mask, cv2.convexHull(np.array(outline, np.int32)), 1)
+        return float((face & mask).sum() / face_area)
+
+    from_hand_model = covered([[(p.x * width * m, p.y * height * m) for p in hand] for hand in hands])
+    from_body = 0.0
+    if body_points is not None:
+        outlines = []
+        for indices in BODY_HAND_POINTS:
+            pts = np.array([[body_points[i][0] * width * m, body_points[i][1] * height * m] for i in indices])
+            centre = pts.mean(axis=0)
+            outlines.append(centre + (pts - centre) * HAND_SPREAD)
+        from_body = covered(outlines)
+    return round(max(from_hand_model, from_body), 3)
 
 
 def find_people(rgb: np.ndarray) -> list[dict]:
@@ -412,6 +515,7 @@ def analyze(rgb: np.ndarray) -> dict:
             or x1 > 1 - EDGE_MARGIN or y1 > 1 - EDGE_MARGIN,
             "landmarks": found["landmarks"],
             "lighting": lighting(rgb, found["landmarks"]),
+            "colour": face_colour(rgb, found["landmarks"]),
         }
         if found["matrix"] is not None:
             face["pose"] = head_pose(found["matrix"])
@@ -423,10 +527,14 @@ def analyze(rgb: np.ndarray) -> dict:
             if len(people) == 1 and people[0]["view"] in ("profile", "back"):
                 # Eye direction can't be read reliably when the head is turned this far.
                 face["measurements"]["eyes_on_lens"] = None
+        face["shape"] = face_shape(rgb, found["landmarks"], face.get("pose"))
         faces.append(face)
 
     if len(people) == 1 and not faces:
         mark_back_if_face_hidden(people[0])
+    if faces:
+        main = max(faces, key=lambda f: f["bbox"]["h"])
+        main["hand_over_face"] = hand_over_face(rgb, main["landmarks"], people[0]["points"] if people else None)
 
     return {
         "width": width,
@@ -470,6 +578,186 @@ def sharpness(rgb: np.ndarray, bbox: dict) -> float:
     scale = SHARPNESS_WIDTH / gray.shape[1]
     gray = cv2.resize(gray, (SHARPNESS_WIDTH, max(1, round(gray.shape[0] * scale))))
     return round(float(cv2.Laplacian(gray, cv2.CV_64F).var()), 1)
+
+
+def face_shape(rgb: np.ndarray, landmarks: list, pose: Optional[dict]) -> dict:
+    """Face proportions, symmetry, eye opening, teeth and gums, under-chin fold and shine.
+
+    These describe how the face looks in this photo (angle, expression and light all change
+    them), not a fixed trait of the person, and are only ever compared with the same person's
+    other photos. Ratios are left out (None) when the head is turned too far to measure them.
+    """
+    height, width = rgb.shape[:2]
+    # Pixels, with depth on the same scale as x.
+    pts = np.array([[x * width, y * height, z * width] for x, y, z in landmarks], dtype=np.float64)
+    yaw = (pose or {}).get("yaw", 0.0)
+
+    # Undo head tilt (roll) using the forehead-to-chin line, then head turn (yaw) using depth.
+    top, chin = pts[FACE_TOP], pts[CHIN_BOTTOM]
+    roll = math.atan2(chin[0] - top[0], chin[1] - top[1])
+    c, s = math.cos(roll), math.sin(roll)
+    x, y = pts[:, 0] - top[0], pts[:, 1] - top[1]
+    straight = np.stack([x * c - y * s, x * s + y * c, pts[:, 2]], axis=1)
+    t = math.radians(yaw)
+    straight[:, 0] = straight[:, 0] * math.cos(t) + straight[:, 2] * math.sin(t)
+
+    def span(pair: tuple) -> float:
+        return float(abs(straight[pair[1], 0] - straight[pair[0], 0]))
+
+    cheekbones = span(CHEEKBONE_WIDTH) or 1e-6
+    length = float(np.linalg.norm(straight[CHIN_BOTTOM, :2] - straight[FACE_TOP, :2]))
+    facing = abs(yaw) <= MAX_SHAPE_YAW
+
+    shape = {}
+    if facing:
+        midline = float(np.mean(straight[list(MIDLINE), 0]))
+        sideways = [abs((midline - straight[a, 0]) - (straight[b, 0] - midline)) for a, b in MIRRORED]
+        upright = [abs(straight[a, 1] - straight[b, 1]) for a, b in MIRRORED]
+        shape.update({
+            # Lower means a narrower jaw for the cheekbones: a more V-shaped face.
+            "jaw_to_cheekbones": round(span(JAW_WIDTH) / cheekbones, 3),
+            # Lower means the chin narrows more from the jaw: a more tapered chin.
+            "chin_to_jaw": round(span(CHIN_WIDTH) / (span(JAW_WIDTH) or 1e-6), 3),
+            "face_length": round(length / cheekbones, 3),
+            # How far mirrored points (eyes, brows, nose, mouth, jaw) are from matching, as a
+            # share of face width. 0 is perfectly symmetrical.
+            "asymmetry": round(float(np.mean(sideways) + np.mean(upright)) / cheekbones, 4),
+        })
+
+    # Eye opening: lid gap over eye width, per eye (left and right as seen in the image). A
+    # turned head narrows the far eye in the photo, so like the proportions it needs to face us.
+    if facing:
+        openings = []
+        for lids, (outer, inner) in zip(EYE_LIDS, EYE_CORNERS):
+            gap = np.mean([np.linalg.norm(pts[a, :2] - pts[b, :2]) for a, b in lids])
+            openings.append(gap / (np.linalg.norm(pts[outer, :2] - pts[inner, :2]) or 1e-6))
+        shape["eye_opening"] = round(float(np.mean(openings)), 3)
+        shape["uneven_eyes"] = round(float(abs(openings[0] - openings[1]) / (max(openings) or 1e-6)), 3)
+
+    if facing:
+        shape.update(teeth_and_gums(rgb, pts))
+    shape.update(skin_detail(rgb, pts, length, facing))
+    return shape
+
+
+def teeth_and_gums(rgb: np.ndarray, pts: np.ndarray) -> dict:
+    """How much of the mouth opening is teeth, and how much gum shows above the top teeth.
+
+    Teeth are found as the brightest part of the mouth opening rather than by colour, since
+    warm light makes them look pink. Gum is whatever sits between the upper lip and the top
+    edge of the teeth, column by column across the middle of the mouth.
+    """
+    lips = pts[list(INNER_LIPS), :2].astype(np.int32)
+    x0, y0 = lips.min(axis=0)
+    x1, y1 = lips.max(axis=0)
+    # Closed lips: the brightest bit of lip would otherwise pass for teeth.
+    gap = np.linalg.norm(pts[UPPER_INNER_LIP, :2] - pts[LOWER_INNER_LIP, :2])
+    if x1 - x0 < 4 or gap < (x1 - x0) * MIN_MOUTH_OPENING:
+        return {"teeth_shown": 0.0, "gummy": 0.0}
+    crop = rgb[y0:y1 + 1, x0:x1 + 1]
+    mouth = np.zeros(crop.shape[:2], np.uint8)
+    cv2.fillPoly(mouth, [lips - [x0, y0]], 1)
+    mouth = mouth.astype(bool)
+    if mouth.sum() < 30:
+        return {"teeth_shown": 0.0, "gummy": 0.0}
+    lab = cv2.cvtColor(crop, cv2.COLOR_RGB2LAB).astype(np.float32)
+    lightness, redness = lab[:, :, 0] / 255, lab[:, :, 1] - 128
+    teeth = mouth & (lightness > max(0.45, float(np.percentile(lightness[mouth], 60))))
+    teeth_share = float(teeth.sum() / mouth.sum())
+    if teeth_share < 0.05:
+        return {"teeth_shown": round(teeth_share, 3), "gummy": 0.0}
+
+    tooth_red = float(np.median(redness[teeth]))
+    gum_heights, mouth_heights = [], []
+    columns = range(int(crop.shape[1] * 0.2), int(crop.shape[1] * 0.8))
+    for col in columns:
+        inside = np.flatnonzero(mouth[:, col])
+        found = np.flatnonzero(teeth[:, col])
+        if inside.size == 0 or found.size == 0:
+            continue
+        lip, tooth_top = inside[0], found[0]
+        band = slice(lip, tooth_top)
+        # Gum is redder than the teeth and not the dark gap of the mouth.
+        gum = (redness[band, col] > tooth_red + 6) & (lightness[band, col] > 0.25)
+        gum_heights.append(gum.sum())
+        mouth_heights.append(inside[-1] - inside[0] + 1)
+    gummy = float(np.mean(gum_heights) / np.mean(mouth_heights)) if gum_heights else 0.0
+    return {"teeth_shown": round(teeth_share, 3), "gummy": round(gummy, 3)}
+
+
+def skin_detail(rgb: np.ndarray, pts: np.ndarray, face_length: float, facing: bool) -> dict:
+    """Shine spots on the face, and how strong a fold shows just below the chin.
+
+    The fold is only measured facing the camera: with the head turned, the jaw edge and hair
+    make strong lines under the chin that aren't a fold.
+    """
+    height, width = rgb.shape[:2]
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+    lightness = lab[:, :, 0] / 255
+    chroma = np.hypot(lab[:, :, 1] - 128, lab[:, :, 2] - 128)
+    face = np.zeros((height, width), np.uint8)
+    cv2.fillConvexPoly(face, cv2.convexHull(pts[:, :2].astype(np.int32)), 1)
+    face = face.astype(bool)
+    if not face.any():
+        return {}
+    median = float(np.median(lightness[face]))
+    shine = face & (lightness > median + SHINE_ABOVE_MEDIAN) & (chroma < SHINE_MAX_CHROMA)
+
+    # Under-chin fold: horizontal light-dark edges in a band below the chin, compared with the
+    # same kind of edges on the cheeks, so sharper or brighter photos don't read as folds.
+    chin_x0, chin_x1 = sorted((int(pts[CHIN_WIDTH[0], 0]), int(pts[CHIN_WIDTH[1], 0])))
+    chin_y = int(pts[CHIN_BOTTOM, 1])
+    band_bottom = min(height, chin_y + max(3, int(face_length * UNDER_CHIN_BAND)))
+    fold = None
+    if facing and chin_x1 - chin_x0 > 4 and band_bottom - chin_y > 2:
+        edges = np.abs(cv2.Sobel(lightness, cv2.CV_32F, 0, 1, ksize=3))
+        under_chin = edges[chin_y:band_bottom, chin_x0:chin_x1]
+        cheeks = edges[face & ~shine]
+        fold = round(float(np.mean(under_chin) / (np.mean(cheeks) or 1e-6)), 3)
+    return {"shine": round(float(shine.sum() / face.sum()), 4), "under_chin_fold": fold}
+
+
+def face_colour(rgb: np.ndarray, landmarks: list) -> dict:
+    """Average colour of each face region, and comparisons that show makeup and contour.
+
+    Each comparison is between two parts of the same face in the same photo, so the light
+    mostly cancels out: lip colour against the forehead, blush on the cheek apples against the
+    forehead, and the cheekbone against the area under it and the jawline. Brightness is LAB
+    lightness (0-1); redness and yellowness are LAB's a and b channels (0 is neutral).
+    """
+    height, width = rgb.shape[:2]
+    lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+    points = np.array([[x * width, y * height] for x, y, _ in landmarks], dtype=np.float32)
+    face_height = points[:, 1].max() - points[:, 1].min()
+
+    regions = {}
+    for region, indices in COLOUR_POINTS.items():
+        radius = max(2, int(face_height * (LIP_PATCH if region == "lips" else LIGHT_PATCH)))
+        mask = np.zeros((height, width), np.uint8)
+        for i in indices:
+            cv2.circle(mask, (int(points[i][0]), int(points[i][1])), radius, 1, -1)
+        inside = mask.astype(bool)
+        if not inside.any():
+            return {}
+        l, a, b = lab[inside].mean(axis=0)
+        r, g, bl = rgb[inside].mean(axis=0)
+        regions[region] = {"brightness": round(float(l) / 255, 3), "redness": round(float(a) / 128 - 1, 3),
+                           "yellowness": round(float(b) / 128 - 1, 3),
+                           "hex": "#%02x%02x%02x" % (int(r), int(g), int(bl))}
+
+    skin = regions["forehead"]
+    return {
+        "regions": regions,
+        # How much redder the lips are than plain skin: bare lips are a little redder, lipstick a lot.
+        "lip_colour": round(regions["lips"]["redness"] - skin["redness"], 3),
+        # How much redder the cheek apples are than the forehead.
+        "blush": round(regions["cheek_apple"]["redness"] - skin["redness"], 3),
+        # How much brighter the cheekbone is than the hollow under it and than the jawline.
+        "contour_depth": round(regions["cheekbone"]["brightness"] - regions["under_cheekbone"]["brightness"], 3),
+        "jaw_definition": round(regions["cheekbone"]["brightness"] - regions["jawline"]["brightness"], 3),
+        # Cheekbone against the forehead: highlighter or a sheen catching the light raises it.
+        "cheekbone_highlight": round(regions["cheekbone"]["brightness"] - skin["brightness"], 3),
+    }
 
 
 def lighting(rgb: np.ndarray, landmarks: list) -> dict:

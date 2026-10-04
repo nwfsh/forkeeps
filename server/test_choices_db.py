@@ -73,3 +73,13 @@ def test_weights_keep_history_but_skip_repeats():
 def test_windows_paths_match_mac_paths():
     choices_db.add("sarah", "data\\training-recognition\\sarah\\a.jpg", "data/training-recognition/sarah/b.jpg", None)
     assert choices_db.load("sarah")[0]["winner"] == "data/training-recognition/sarah/a.jpg"
+
+
+def test_test_choices_are_kept_apart_from_training_picks():
+    choices_db.add_test_choice("salma", "a.jpg", "b.jpg")
+    choices_db.add_test_choice("salma", "c.jpg", "a.jpg")
+    assert [(c["winner"], c["loser"]) for c in choices_db.load_test_choices("salma")] == [
+        ("a.jpg", "b.jpg"), ("c.jpg", "a.jpg")]
+    assert choices_db.load("salma") == []  # never used for training
+    assert choices_db.remove_last_test_choice("salma")["winner"] == "c.jpg"
+    assert len(choices_db.load_test_choices("salma")) == 1
