@@ -1,3 +1,4 @@
+import hashlib
 import math
 import threading
 from pathlib import Path
@@ -7,9 +8,12 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions
+from mediapipe.python.solutions import face_mesh_connections as mesh
 from mediapipe.tasks.python import vision
 
 MODEL_PATH = Path(__file__).parent / "models" / "face_landmarker.task"
+# The files whose code decides what a photo's results are.
+ANALYSIS_CODE = ("vision.py", "ranker.py")
 POSE_MODEL_PATH = Path(__file__).parent / "models" / "pose_landmarker_full.task"
 
 # A face whose box comes within this fraction of the frame edge counts as cut off.
@@ -40,6 +44,8 @@ LEFT_SHOULDER, RIGHT_SHOULDER = 11, 12
 LEFT_HIP, RIGHT_HIP = 23, 24
 LEFT_KNEE, RIGHT_KNEE = 25, 26
 LEFT_ANKLE, RIGHT_ANKLE = 27, 28
+LEFT_ELBOW, RIGHT_ELBOW = 13, 14
+LEFT_WRIST, RIGHT_WRIST = 15, 16
 # Nose offset from the midpoint between the ears, in ear-gaps. Tuned on our own photos.
 THREE_QUARTER_TURN = 0.4
 PROFILE_TURN = 1.0
@@ -52,6 +58,32 @@ JOINT_MARGIN = 0.04
 LOOKING_ROOM = 0.3
 # A face shorter than this fraction of the frame has too few pixels to read expressions from.
 MIN_FACE_SIZE = 0.05
+# Every expression score the face model gives (0-1 each), all kept.
+EXPRESSIONS = [
+    "_neutral", "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight",
+    "cheekPuff", "cheekSquintLeft", "cheekSquintRight", "eyeBlinkLeft", "eyeBlinkRight",
+    "eyeLookDownLeft", "eyeLookDownRight", "eyeLookInLeft", "eyeLookInRight", "eyeLookOutLeft",
+    "eyeLookOutRight", "eyeLookUpLeft", "eyeLookUpRight", "eyeSquintLeft", "eyeSquintRight",
+    "eyeWideLeft", "eyeWideRight", "jawForward", "jawLeft", "jawOpen", "jawRight", "mouthClose",
+    "mouthDimpleLeft", "mouthDimpleRight", "mouthFrownLeft", "mouthFrownRight", "mouthFunnel",
+    "mouthLeft", "mouthLowerDownLeft", "mouthLowerDownRight", "mouthPressLeft", "mouthPressRight",
+    "mouthPucker", "mouthRight", "mouthRollLower", "mouthRollUpper", "mouthShrugLower",
+    "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
+    "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight",
+]
+# Face region of each expression score, by its name's prefix.
+EXPRESSION_REGIONS = {"brow": "Brows", "eye": "Eyes", "cheek": "Cheeks", "jaw": "Jaw",
+                      "mouth": "Mouth", "nose": "Nose", "_neutral": "Overall"}
+# Which of the 478 face points outline each region, as (point, point) edges to draw.
+LANDMARK_REGIONS = {
+    "Face oval": mesh.FACEMESH_FACE_OVAL,
+    "Brows": mesh.FACEMESH_LEFT_EYEBROW | mesh.FACEMESH_RIGHT_EYEBROW,
+    "Eyes": mesh.FACEMESH_LEFT_EYE | mesh.FACEMESH_RIGHT_EYE,
+    "Irises": mesh.FACEMESH_IRISES,
+    "Nose": mesh.FACEMESH_NOSE,
+    "Mouth": mesh.FACEMESH_LIPS,
+}
+FACE_MESH = mesh.FACEMESH_TESSELATION
 # Reasons a photo's measurements can't be trusted, so it shouldn't be used to learn preferences.
 RED_FLAGS = {
     "no_person": "No one in the photo",
@@ -92,6 +124,16 @@ _pose_retry_landmarker = vision.PoseLandmarker.create_from_options(
 _lock = threading.Lock()
 
 
+def code_version() -> str:
+    """A fingerprint of the code that turns a photo into results, for keying caches.
+
+    Streamlit only clears a cached function when that function's own code changes, so the
+    apps pass this in to recompute photos after vision.py or ranker.py change.
+    """
+    here = Path(__file__).parent
+    return hashlib.sha1(b"".join((here / name).read_bytes() for name in ANALYSIS_CODE)).hexdigest()
+
+
 def decode_image(data: bytes) -> np.ndarray:
     """Decode JPEG/PNG bytes to an RGB array, honouring EXIF orientation."""
     bgr = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
@@ -127,6 +169,9 @@ def detect(rgb: np.ndarray, top: int = 0, left: int = 0, side: Optional[int] = N
         ys = [(top + p.y * crop_h) / height for p in landmarks]
         found.append({
             "box": (min(xs), min(ys), max(xs), max(ys)),
+            # All 478 points, as fractions of the whole image; z is depth, on the x scale.
+            "landmarks": [[round(x, 5), round(y, 5), round(p.z * crop_w / width, 5)]
+                          for x, y, p in zip(xs, ys, landmarks)],
             "matrix": result.facial_transformation_matrixes[i]
             if i < len(result.facial_transformation_matrixes) else None,
             "blendshapes": result.face_blendshapes[i] if i < len(result.face_blendshapes) else None,
@@ -187,15 +232,56 @@ def find_people(rgb: np.ndarray) -> list[dict]:
             result = _pose_retry_landmarker.detect(image)
 
     people, boxes = [], []
-    for landmarks in result.pose_landmarks:
+    for landmarks, world in zip(result.pose_landmarks, result.pose_world_landmarks):
         points = [(p.x, p.y) for p in landmarks]
         box = (min(x for x, _ in points), min(y for _, y in points),
                max(x for x, _ in points), max(y for _, y in points))
         # At a low cutoff the model can return the same person twice, slightly offset.
         if all(overlap(box, other) < 0.3 for other in boxes):
             boxes.append(box)
-            people.append(describe_body(points, width, height))
+            person = describe_body(points, width, height)
+            person.update(posture(np.array([[p.x, p.y, p.z] for p in world])))
+            people.append(person)
     return people
+
+
+def posture(world: np.ndarray) -> dict:
+    """Slouch and arm measurements from the 33 pose points in metres (y points down).
+
+    These use the model's 3D estimate, since slouching is a forward lean a flat image barely
+    shows. That estimate isn't good enough to tell hands behind the back from hands in front,
+    or crossed arms from hands on hips, so arm position is only measured, not named.
+    """
+    def unit(v: np.ndarray) -> np.ndarray:
+        norm = np.linalg.norm(v)
+        return v / norm if norm else v
+
+    shoulders = (world[LEFT_SHOULDER] + world[RIGHT_SHOULDER]) / 2
+    hips = (world[LEFT_HIP] + world[RIGHT_HIP]) / 2
+    ears = (world[LEFT_EAR] + world[RIGHT_EAR]) / 2
+    shoulder_width = np.linalg.norm(world[LEFT_SHOULDER] - world[RIGHT_SHOULDER]) or 1e-6
+    up = unit(shoulders - hips)
+    forward = unit(np.cross(world[LEFT_SHOULDER] - world[RIGHT_SHOULDER], up))
+    if np.dot(world[NOSE] - ears, forward) < 0:
+        forward = -forward
+    head = ears - shoulders
+
+    def elbow_gap(elbow: int, shoulder: int, hip: int) -> float:
+        """Elbow's distance out from the line down that side of the body."""
+        side = unit(world[hip] - world[shoulder])
+        offset = world[elbow] - world[shoulder]
+        return float(np.linalg.norm(offset - np.dot(offset, side) * side))
+
+    return {
+        # How far the head sits in front of the shoulders, relative to the spine. Slouching raises it.
+        "head_forward": round(float(np.degrees(np.arctan2(np.dot(head, forward), np.dot(head, up)))), 1),
+        # Ear height above the shoulders, in shoulder widths. Hunched shoulders shorten it.
+        "neck_length": round(float(np.dot(head, up) / shoulder_width), 3),
+        # Elbows' average distance from the body's sides, in shoulder widths.
+        "arm_gap": round((elbow_gap(LEFT_ELBOW, LEFT_SHOULDER, LEFT_HIP)
+                          + elbow_gap(RIGHT_ELBOW, RIGHT_SHOULDER, RIGHT_HIP)) / 2 / shoulder_width, 3),
+        "hand_raised": bool(min(world[LEFT_WRIST][1], world[RIGHT_WRIST][1]) < shoulders[1]),
+    }
 
 
 def describe_body(points: list[tuple], width: int, height: int) -> dict:
@@ -304,11 +390,13 @@ def analyze(rgb: np.ndarray) -> dict:
             },
             "cut_off": x0 < EDGE_MARGIN or y0 < EDGE_MARGIN
             or x1 > 1 - EDGE_MARGIN or y1 > 1 - EDGE_MARGIN,
+            "landmarks": found["landmarks"],
         }
         if found["matrix"] is not None:
             face["pose"] = head_pose(found["matrix"])
         if found["blendshapes"] is not None:
             scores = {c.category_name: c.score for c in found["blendshapes"]}
+            face["expressions"] = {name: round(score, 4) for name, score in scores.items()}
             face["measurements"] = measure(rgb, face, scores)
             face["mode"] = detect_mode(scores, face["measurements"])
             if len(people) == 1 and people[0]["view"] in ("profile", "back"):

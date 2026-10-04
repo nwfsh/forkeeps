@@ -55,9 +55,9 @@ def test_learns_single_priority():
 
 
 def test_learns_a_feature_they_dislike():
-    ranker = simulate(made_up_photos(40), lambda f: -f["face_size"], rounds=30)
+    ranker = simulate(made_up_photos(40), lambda f: -f["eye_contact"], rounds=30)
     top = ranker.priorities()[0]
-    assert top["feature"] == "face_size"
+    assert top["feature"] == "eye_contact"
     assert top["weight"] < 0
 
 
@@ -124,7 +124,7 @@ def test_photo_features_from_analysis():
     assert f["goofy"] == 0
     assert f["clean_crop"] == 0
     assert f["looking_room"] == 0
-    assert f["body_shown"] == 0.5
+    assert "face_size" not in f and "body_shown" not in f
 
 
 def test_photo_features_without_anyone():
