@@ -7,9 +7,15 @@ import { usePhotos } from '@/components/photos-provider';
 import { NextCard, RoundButton, SwipeCard, type SwipeCardHandle } from '@/components/swipe-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, FontFamily } from '@/constants/theme';
 import type { Photo } from '@/lib/photos';
-import { fetchUncertain, retrainModel, sendVerdict, type RetrainResult, type Verdict } from '@/lib/server';
+import {
+  fetchUncertain,
+  retrainModel,
+  sendVerdict,
+  type RetrainResult,
+  type Verdict,
+} from '@/lib/server';
 
 const GREEN = '#3DDC84';
 const RED = '#F87171';
@@ -45,10 +51,13 @@ export default function TuneScreen() {
       .then((chosen) => {
         if (cancelled) return;
         const byId = new Map(measured.map((p) => [p.id, p]));
-        const deck = chosen.flatMap(({ id, score }) => (byId.has(id) ? [{ photo: byId.get(id)!, score }] : []));
+        const deck = chosen.flatMap(({ id, score }) =>
+          byId.has(id) ? [{ photo: byId.get(id)!, score }] : [],
+        );
         setCards(deck);
         setPhase(deck.length ? 'swiping' : 'unavailable');
-        if (!deck.length) setError('None of your photos could be measured well enough to tune with.');
+        if (!deck.length)
+          setError('None of your photos could be measured well enough to tune with.');
       })
       .catch((e) => {
         if (cancelled) return;
@@ -73,7 +82,9 @@ export default function TuneScreen() {
       setIndex((i) => i + 1);
       if (index + 1 >= cards.length) train();
     } catch (e) {
-      setError(`Couldn't save that, so nothing changed. ${e instanceof Error ? e.message : String(e)}`);
+      setError(
+        `Couldn't save that, so nothing changed. ${e instanceof Error ? e.message : String(e)}`,
+      );
       setAttempt((n) => n + 1);
     } finally {
       setSaving(false);
@@ -116,7 +127,9 @@ export default function TuneScreen() {
         {phase === 'loading' && !tooFew && (
           <View style={styles.center}>
             <ActivityIndicator />
-            <ThemedText themeColor="textSecondary">Finding the photos your coach is least sure about…</ThemedText>
+            <ThemedText themeColor="textSecondary">
+              Finding the photos your coach is least sure about…
+            </ThemedText>
           </View>
         )}
 
@@ -135,7 +148,8 @@ export default function TuneScreen() {
             </ThemedText>
             {current && (
               <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-                Your coach gives this one {Math.round(current.score * 100)}%: it can&apos;t tell yet.
+                Your coach gives this one {Math.round(current.score * 100)}%: it can&apos;t tell
+                yet.
               </ThemedText>
             )}
             <View style={styles.deck}>
@@ -152,15 +166,27 @@ export default function TuneScreen() {
             {error && <Text style={styles.error}>{error}</Text>}
             {current && (
               <View style={styles.buttons}>
-                <RoundButton label="✕" color={RED} disabled={saving} onPress={() => card.current?.swipe('remove')}
-                  accessibilityLabel="Not my style" />
-                <RoundButton label="♥" color={GREEN} disabled={saving} onPress={() => card.current?.swipe('keep')}
-                  accessibilityLabel="I like this one" />
+                <RoundButton
+                  label="✕"
+                  color={RED}
+                  disabled={saving}
+                  onPress={() => card.current?.swipe('remove')}
+                  accessibilityLabel="Not my style"
+                />
+                <RoundButton
+                  label="♥"
+                  color={GREEN}
+                  disabled={saving}
+                  onPress={() => card.current?.swipe('keep')}
+                  accessibilityLabel="I like this one"
+                />
               </View>
             )}
             {swiped > 0 && current && (
               <Pressable style={styles.now} disabled={saving} onPress={train} hitSlop={8}>
-                <ThemedText type="smallBold">Retrain now with {swiped} swipe{swiped === 1 ? '' : 's'}</ThemedText>
+                <ThemedText type="smallBold">
+                  Retrain now with {swiped} swipe{swiped === 1 ? '' : 's'}
+                </ThemedText>
               </Pressable>
             )}
           </>
@@ -169,7 +195,9 @@ export default function TuneScreen() {
         {phase === 'training' && (
           <View style={styles.center}>
             <ActivityIndicator />
-            <ThemedText themeColor="textSecondary">Retraining on everything you&apos;ve taught it…</ThemedText>
+            <ThemedText themeColor="textSecondary">
+              Retraining on everything you&apos;ve taught it…
+            </ThemedText>
           </View>
         )}
 
@@ -184,7 +212,8 @@ function Results({ result, swiped }: { result: RetrainResult; swiped: number }) 
   const before = result.before;
   const shown = result.priorities.slice(0, 3);
   const wasTop = new Set(before?.priorities.map((p) => p.feature));
-  const percent = (value: number | null | undefined) => (value == null ? '–' : `${Math.round(value * 100)}%`);
+  const percent = (value: number | null | undefined) =>
+    value == null ? '–' : `${Math.round(value * 100)}%`;
 
   return (
     <View style={styles.results}>
@@ -202,7 +231,8 @@ function Results({ result, swiped }: { result: RetrainResult; swiped: number }) 
         <ThemedText type="smallBold">What it looks for now</ThemedText>
         {shown.map((p) => (
           <ThemedText key={p.feature}>
-            • {p.prefers} ({Math.round(p.share * 100)}%){before && !wasTop.has(p.feature) ? '  new' : ''}
+            • {p.prefers} ({Math.round(p.share * 100)}%)
+            {before && !wasTop.has(p.feature) ? '  new' : ''}
           </ThemedText>
         ))}
       </ThemedView>
@@ -245,6 +275,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   centerText: {
+    fontFamily: FontFamily.body,
     textAlign: 'center',
   },
   hint: {
@@ -256,6 +287,7 @@ const styles = StyleSheet.create({
     margin: Spacing.three,
   },
   error: {
+    fontFamily: FontFamily.body,
     color: RED,
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
@@ -292,8 +324,8 @@ const styles = StyleSheet.create({
     backgroundColor: GREEN,
   },
   finishText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#0B2E19',
-    fontWeight: '700',
     fontSize: 16,
   },
 });

@@ -67,3 +67,16 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/**
+ * The app's typefaces, loaded in app/_layout.tsx. Lato for titles, headings and big text;
+ * Cantarell for everything else (paragraphs, labels, buttons). Each weight is its own family,
+ * so set the family and leave fontWeight unset: a fontWeight on a custom font can fall back to
+ * the system font on Android.
+ */
+export const FontFamily = {
+  heading: 'Lato_700Bold',
+  headingBlack: 'Lato_900Black',
+  body: 'Cantarell_400Regular',
+  bodyBold: 'Cantarell_700Bold',
+} as const;

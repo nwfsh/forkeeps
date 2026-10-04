@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Analysis } from '@/lib/server';
+import { ACCENT } from '@/components/onboarding-style';
+import { FontFamily } from '@/constants/theme';
 
 type Props = {
   analysis: Analysis;
@@ -53,14 +55,16 @@ export function FaceOverlay({ analysis, viewWidth, viewHeight, mirrored }: Props
 const styles = StyleSheet.create({
   box: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: 3,
     borderRadius: 12,
-    borderColor: '#4ADE80',
+    // The brand's dark pink; a face cut off by the edge turns red instead.
+    borderColor: ACCENT,
   },
   cutOff: {
     borderColor: '#F87171',
   },
   name: {
+    fontFamily: FontFamily.bodyBold,
     position: 'absolute',
     bottom: '100%',
     left: -2,
@@ -69,10 +73,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#4ADE80',
-    color: '#052e16',
+    backgroundColor: ACCENT,
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '700',
     textTransform: 'capitalize',
   },
   nameCutOff: {

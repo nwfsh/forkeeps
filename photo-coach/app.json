@@ -56,7 +56,8 @@
           "cameraPermission": "Photo Coach uses the camera to coach you on your shot before you take it.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

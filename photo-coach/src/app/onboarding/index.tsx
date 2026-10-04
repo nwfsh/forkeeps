@@ -1,35 +1,60 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GradientBackground, INK, MUTED, PillButton, Ribbon } from '@/components/onboarding-style';
+import {
+  BackLink,
+  GradientBackground,
+  INK,
+  MUTED,
+  PillButton,
+} from '@/components/onboarding-style';
+import { DrawnRibbon } from '@/components/drawn-ribbon';
+import { useOnboarding } from '@/components/onboarding-provider';
+import { FontFamily } from '@/constants/theme';
 
-// The ribbon's own width in the SVG, a touch larger, as in the design.
-const RIBBON_WIDTH = 122 * 1.05;
-// Where things sit, as a share of the screen height, measured from the design.
-const RIBBON_TOP = '30%';
-const TEXT_TOP = '56%';
-const FOOTER_BOTTOM = '8%';
+// The ribbon's size: its own width in the SVG, scaled up.
+const RIBBON_WIDTH = 122 * 1.4;
+// The button block's distance from the bottom, above the home indicator.
+const FOOTER_BOTTOM = 50;
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const { replaying, finish } = useOnboarding();
+  // Counts each time this page comes into view, including coming Back to it; the logo and
+  // background are keyed on it, so their animations play again from the start every time.
+  const [visit, setVisit] = useState(0);
+  useFocusEffect(useCallback(() => setVisit((v) => v + 1), []));
 
   return (
-    <View style={styles.screen}>
-      <GradientBackground />
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: insets.top, paddingBottom: insets.bottom + FOOTER_BOTTOM },
+      ]}>
+      <GradientBackground key={`background-${visit}`} moving />
+      {/* Opened again from the gallery: the way back without redoing onboarding. */}
+      {replaying && (
+        <View style={styles.topBar}>
+          <BackLink label="‹ Back to camera" onPress={finish} />
+        </View>
+      )}
 
-      <View style={styles.hero}>
-        <Ribbon width={RIBBON_WIDTH} />
+      {/* The logo and words as one group, centred on the screen (behind the controls, so the
+          button and Back don't push it off-centre). */}
+      <View style={styles.middle} pointerEvents="none">
+        {/* The logo draws itself in: its one animation on this page. */}
+        <DrawnRibbon key={`logo-${visit}`} width={RIBBON_WIDTH} />
+        <View style={styles.copy}>
+          <Text style={styles.title}>{'Get the shot\non the first try'}</Text>
+          <Text style={styles.subtitle}>
+            Teach the app what you like in photos of yourself. It coaches you before the shutter.
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.copy}>
-        <Text style={styles.title}>Get the shot on the first try</Text>
-        <Text style={styles.subtitle}>
-          Teach the app what you like in photos of yourself. It coaches you before the shutter.
-        </Text>
-      </View>
-
-      <View style={[styles.footer, { marginBottom: insets.bottom }]}>
+      <View style={styles.footer}>
         <PillButton label="Get started" onPress={() => router.push('/onboarding/how-it-works')} />
         <View style={styles.hint}>
           <Text style={styles.hintLabel}>Takes about 2 minutes</Text>
@@ -44,40 +69,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  hero: {
-    position: 'absolute',
-    top: RIBBON_TOP,
-    left: 0,
-    right: 0,
+  topBar: {
+    paddingHorizontal: 34,
+    paddingTop: 8,
+  },
+  middle: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 32,
   },
   copy: {
-    position: 'absolute',
-    top: TEXT_TOP,
-    left: 32,
-    right: 32,
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
+    paddingHorizontal: 42,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
-    letterSpacing: -0.6,
+    fontSize: 36,
+    lineHeight: 45,
+    letterSpacing: -0.8,
     textAlign: 'center',
   },
   subtitle: {
+    fontFamily: FontFamily.body,
+    maxWidth: 300,
     color: MUTED,
     fontSize: 17,
-    lineHeight: 24,
+    lineHeight: 25,
     textAlign: 'center',
   },
   footer: {
-    position: 'absolute',
-    bottom: FOOTER_BOTTOM,
-    left: 20,
-    right: 20,
+    marginTop: 'auto',
+    paddingHorizontal: 30,
     alignItems: 'center',
     gap: 16,
   },
@@ -95,6 +120,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   hintLabel: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 14,
   },

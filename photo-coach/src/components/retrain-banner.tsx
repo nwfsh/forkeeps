@@ -4,8 +4,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, FontFamily } from '@/constants/theme';
 import { fetchModelStatus, retrainModel, type ModelStatus, type RetrainResult } from '@/lib/server';
+import { ACCENT } from '@/components/onboarding-style';
 
 // How many of the new model's priorities to spell out.
 const SHOWN = 3;
@@ -26,7 +27,7 @@ export function RetrainBanner() {
       fetchModelStatus()
         .then(setStatus)
         .catch(() => setStatus(null));
-    }, [])
+    }, []),
   );
 
   async function retrain() {
@@ -66,16 +67,19 @@ export function RetrainBanner() {
 
   return (
     <ThemedView type="backgroundElement" style={styles.banner}>
-      <ThemedText type="smallBold">
-        {status.new_since_training} new photos reviewed
-      </ThemedText>
+      <ThemedText type="smallBold">{status.new_since_training} new photos reviewed</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        Retrain the coach so its tips follow what you kept ({status.kept}) and removed ({status.removed}).
+        Retrain the coach so its tips follow what you kept ({status.kept}) and removed (
+        {status.removed}).
       </ThemedText>
       {error && <Text style={styles.error}>{error}</Text>}
       <View style={styles.row}>
         <Pressable style={styles.button} disabled={training} onPress={retrain}>
-          {training ? <ActivityIndicator color="#0B2E19" /> : <Text style={styles.buttonText}>Retrain</Text>}
+          {training ? (
+            <ActivityIndicator color="#0B2E19" />
+          ) : (
+            <Text style={styles.buttonText}>Retrain</Text>
+          )}
         </Pressable>
       </View>
     </ThemedView>
@@ -98,15 +102,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     borderRadius: 999,
-    backgroundColor: '#3DDC84',
+    backgroundColor: ACCENT,
     minWidth: 96,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#0B2E19',
-    fontWeight: '700',
+    fontFamily: FontFamily.bodyBold,
+    color: '#FFFFFF',
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#F87171',
   },
   dismiss: {

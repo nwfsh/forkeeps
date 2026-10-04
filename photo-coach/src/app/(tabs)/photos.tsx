@@ -19,14 +19,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOnboarding } from '@/components/onboarding-provider';
 import { usePhotos } from '@/components/photos-provider';
 import { RetrainBanner } from '@/components/retrain-banner';
-import { INK, MUTED } from '@/components/onboarding-style';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { INK, MUTED, ACCENT } from '@/components/onboarding-style';
+import { Spacing, FontFamily } from '@/constants/theme';
 import type { Photo } from '@/lib/photos';
 import { sendVerdict } from '@/lib/server';
 
+// The settings links under the title (Replay intro, Preview screens, Makeup look), hidden for
+// now; set to true to bring them back.
+const SHOW_SETTINGS = false;
 const COLUMNS = 3;
 const GAP = 6;
-const SIDE = 16;
+const SIDE = 26;
 
 /** "24 FEB 2026": the day a photo was taken, as the grid's section heading. */
 function dayLabel(takenAt: number) {
@@ -66,6 +69,24 @@ export default function PhotosScreen() {
 
   const header = (
     <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+        hitSlop={8}
+        style={styles.backToCamera}>
+        <SymbolView
+          name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+          size={16}
+          weight="semibold"
+          tintColor={INK}
+        />
+        <SymbolView
+          name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
+          size={16}
+          tintColor={INK}
+        />
+        <Text style={styles.backToCameraText}>Back to camera</Text>
+      </Pressable>
       <View style={styles.titleRow}>
         <View style={styles.titleText}>
           <Text style={styles.title}>Photo gallery</Text>
@@ -88,18 +109,20 @@ export default function PhotosScreen() {
         </View>
       </View>
       <RetrainBanner />
-      <View style={styles.links}>
-        <Pressable accessibilityRole="button" onPress={() => restart()} hitSlop={8}>
-          <Text style={styles.link}>Replay intro</Text>
-        </Pressable>
-        {/* Every onboarding page with a Skip button, for checking the design quickly. */}
-        <Pressable accessibilityRole="button" onPress={() => restart(true)} hitSlop={8}>
-          <Text style={styles.link}>Preview screens</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/makeup')} hitSlop={8}>
-          <Text style={styles.link}>Makeup look</Text>
-        </Pressable>
-      </View>
+      {SHOW_SETTINGS && (
+        <View style={styles.links}>
+          <Pressable accessibilityRole="button" onPress={() => restart()} hitSlop={8}>
+            <Text style={styles.link}>Replay intro</Text>
+          </Pressable>
+          {/* Every onboarding page with a Skip button, for checking the design quickly. */}
+          <Pressable accessibilityRole="button" onPress={() => restart(true)} hitSlop={8}>
+            <Text style={styles.link}>Preview screens</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/makeup')} hitSlop={8}>
+            <Text style={styles.link}>Makeup look</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 
@@ -114,7 +137,7 @@ export default function PhotosScreen() {
             <Text style={styles.empty}>Photos you take on the Camera tab show up here.</Text>
           }
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ paddingBottom: BottomTabInset + Spacing.four }}
+          contentContainerStyle={{ paddingBottom: Spacing.five }}
           renderSectionHeader={({ section }) => <Text style={styles.day}>{section.title}</Text>}
           renderItem={({ item: row }) => (
             <View style={styles.row}>
@@ -289,9 +312,24 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: SIDE,
-    paddingTop: 24,
+    paddingTop: 12,
     paddingBottom: 8,
-    gap: 12,
+    gap: 14,
+  },
+  backToCamera: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#F2EEEB',
+  },
+  backToCameraText: {
+    fontFamily: FontFamily.bodyBold,
+    color: INK,
+    fontSize: 15,
   },
   titleRow: {
     flexDirection: 'row',
@@ -304,13 +342,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 32,
-    lineHeight: 38,
-    fontWeight: '700',
+    lineHeight: 40,
     letterSpacing: -0.5,
   },
   count: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 16,
   },
@@ -327,18 +366,18 @@ const styles = StyleSheet.create({
     borderColor: INK,
   },
   outlineText: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
-    fontWeight: '600',
   },
   inkButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   inkText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   links: {
     flexDirection: 'row',
@@ -346,13 +385,14 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   link: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 13,
   },
   day: {
+    fontFamily: FontFamily.bodyBold,
     color: MUTED,
     fontSize: 12,
-    fontWeight: '600',
     letterSpacing: 0.6,
     paddingHorizontal: SIDE,
     paddingTop: 20,
@@ -369,6 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEE9E6',
   },
   empty: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 16,
     paddingHorizontal: SIDE,
@@ -418,13 +459,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(60,60,60,0.9)',
   },
   actionText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
   },
   viewerText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#fff',
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   danger: {

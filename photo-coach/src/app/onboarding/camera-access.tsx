@@ -1,6 +1,6 @@
 import { useCameraPermissions } from 'expo-camera';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,7 +11,9 @@ import {
   MUTED,
   PillButton,
   StepDots,
+  Appear,
 } from '@/components/onboarding-style';
+import { FontFamily } from '@/constants/theme';
 
 // Where things sit, as a share of the screen height, like the welcome screen.
 const HERO_TOP = '24%';
@@ -49,13 +51,15 @@ export default function CameraAccessScreen() {
       </View>
 
       <View style={styles.hero}>
-        <View style={styles.icon}>
-          <SymbolView
-            name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
-            size={40}
-            tintColor={INK}
+        <Appear kind="drop" order={1} style={styles.icon}>
+          {/* A group posing together: a line drawing straight on the gradient. */}
+          <Image
+            source={require('@/assets/images/onboarding/group-pose.svg')}
+            style={styles.illustration}
+            contentFit="contain"
+            accessibilityLabel="Friends posing for a photo"
           />
-        </View>
+        </Appear>
         <View style={styles.copy}>
           <Text style={styles.title}>Pose for us so we know what you like</Text>
           <Text style={styles.subtitle}>
@@ -65,7 +69,7 @@ export default function CameraAccessScreen() {
         </View>
       </View>
 
-      <View style={[styles.footer, { marginBottom: insets.bottom }]}>
+      <View style={[styles.footer, { marginBottom: insets.bottom + 10 }]}>
         {permission?.granted ? (
           <PillButton label="Continue" onPress={() => router.push('/onboarding/record')} />
         ) : (
@@ -87,50 +91,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   topBar: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 34,
   },
   steps: {
     marginTop: 16,
   },
   back: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   hero: {
     position: 'absolute',
     top: HERO_TOP,
-    left: 32,
-    right: 32,
+    // A little below the 24% mark.
+    marginTop: 30,
+    left: 42,
+    right: 42,
     alignItems: 'center',
-    gap: 32,
+    gap: 12,
   },
   icon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+  },
+  // The line drawing (a vector, 853 x 720) on its own on the gradient, small, just above the title.
+  illustration: {
+    width: 150,
+    height: 150 / (853 / 720),
   },
   copy: {
     alignItems: 'center',
     gap: 16,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
     textAlign: 'center',
   },
   subtitle: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
     lineHeight: 24,
@@ -139,14 +142,14 @@ const styles = StyleSheet.create({
   footer: {
     position: 'absolute',
     bottom: FOOTER_BOTTOM,
-    left: 20,
-    right: 20,
+    left: 30,
+    right: 30,
     alignItems: 'center',
     gap: 16,
   },
   notNow: {
+    fontFamily: FontFamily.bodyBold,
     color: MUTED,
     fontSize: 16,
-    fontWeight: '600',
   },
 });

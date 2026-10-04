@@ -1,3 +1,6 @@
+import { Cantarell_400Regular, Cantarell_700Bold } from '@expo-google-fonts/cantarell';
+import { Lato_700Bold, Lato_900Black } from '@expo-google-fonts/lato';
+import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
@@ -11,6 +14,17 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // The app's typefaces (constants/theme FontFamily). Until they're in, nothing renders, so the
+  // splash screen stays up and no text shows in the system font first. A font that fails to load
+  // just falls back to the system one.
+  const [fontsLoaded, fontError] = useFonts({
+    Lato_700Bold,
+    Lato_900Black,
+    Cantarell_400Regular,
+    Cantarell_700Bold,
+  });
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     // Swipeable cards (photo review) need gestures handled from the root.
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,14 +1,11 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  GradientBackground,
-  INK,
-  MUTED,
-  PillButton,
-  Wordmark,
-} from '@/components/onboarding-style';
+import { GradientBackground, PillButton, ACCENT, Appear, INK } from '@/components/onboarding-style';
+import { FontFamily } from '@/constants/theme';
 
 const STEPS = [
   { title: 'Film yourself', body: 'Fifteen seconds, however you like.' },
@@ -21,45 +18,78 @@ const STEPS = [
     body: 'We learn what you like and nudge you toward it, out loud, as you shoot.',
   },
 ];
-// Where the copy starts and the button sits, as a share of the screen height, matching the
-// welcome screen so the two read as one sequence.
-const TEXT_TOP = '30%';
-const FOOTER_BOTTOM = '8%';
+// The wordmark header's width, and the button's distance from the bottom (above the home bar).
+const WORDMARK_WIDTH = 110;
+// The full-colour PickTure wordmark from the design (pink ribbon letters), and its shape.
+const WORDMARK = require('@/assets/images/onboarding/wordmark-color.png');
+const WORDMARK_RATIO = 282 / 120;
+const FOOTER_BOTTOM = 82;
+// The least space between the header and the steps, and how far below the screen's middle the
+// steps are centred.
+const STEPS_GAP = 24;
+const STEPS_DROP = 20;
 
 export default function HowItWorksScreen() {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  // The steps are centred on the screen, but never closer than STEPS_GAP below the header; both
+  // are measured once laid out (until then the steps sit in the space below the header).
+  const [headerBottom, setHeaderBottom] = useState<number | null>(null);
+  const [stepsHeight, setStepsHeight] = useState<number | null>(null);
+  const stepsTop =
+    headerBottom === null || stepsHeight === null
+      ? null
+      : Math.max((height - stepsHeight) / 2 + STEPS_DROP, headerBottom + STEPS_GAP);
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={[
+        styles.screen,
+        { paddingTop: insets.top + 8, paddingBottom: insets.bottom + FOOTER_BOTTOM },
+      ]}>
       <GradientBackground kind="multicolor" />
 
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Wordmark width={150} />
+      <Appear kind="drop" order={0} style={styles.topBar}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={12}>
           <Text style={styles.back}>Back</Text>
         </Pressable>
-      </View>
+        {/* The full-colour PickTure logo in the top-right corner. */}
+        <Image
+          source={WORDMARK}
+          style={{ width: WORDMARK_WIDTH, height: WORDMARK_WIDTH / WORDMARK_RATIO }}
+          contentFit="contain"
+          accessibilityLabel="PickTure"
+        />
+      </Appear>
 
-      <View style={styles.copy}>
-        <Text style={styles.title}>How it works</Text>
-        <View style={styles.steps}>
+      {/* The page title, centred. */}
+      <Appear
+        kind="drop"
+        order={1}
+        style={styles.header}
+        onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
+        <Text style={styles.title}>How It Works</Text>
+      </Appear>
+
+      {/* The steps, left-aligned in a column, centred on the screen where there's room. */}
+      <View style={[styles.copy, stepsTop !== null && { ...styles.centred, top: stepsTop }]}>
+        <View style={styles.steps} onLayout={(e) => setStepsHeight(e.nativeEvent.layout.height)}>
           {STEPS.map((step, i) => (
-            <View key={step.title} style={styles.step}>
-              <View style={styles.number}>
-                <Text style={styles.numberText}>{i + 1}</Text>
-              </View>
+            // The instructions glide in one after another, each starting partway in.
+            <Appear key={step.title} kind="glide" order={3 + 2 * i} style={styles.step}>
+              <Text style={styles.number}>{i + 1}</Text>
               <View style={styles.stepText}>
                 <Text style={styles.stepTitle}>{step.title}</Text>
                 <Text style={styles.stepBody}>{step.body}</Text>
               </View>
-            </View>
+            </Appear>
           ))}
         </View>
       </View>
 
-      <View style={[styles.footer, { marginBottom: insets.bottom }]}>
+      <Appear order={9} style={styles.footer}>
         <PillButton label="Let's go" onPress={() => router.push('/onboarding/profile')} />
-      </View>
+      </Appear>
     </View>
   );
 }
@@ -73,66 +103,74 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
+    minHeight: 32,
+    paddingHorizontal: 34,
+  },
+  header: {
+    alignItems: 'center',
+    gap: 20,
+    marginTop: 126,
   },
   back: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   copy: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 42,
+  },
+  centred: {
     position: 'absolute',
-    top: TEXT_TOP,
-    left: 28,
-    right: 28,
-    gap: 28,
+    left: 0,
+    right: 0,
+    flex: undefined,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
+    textAlign: 'center',
   },
   steps: {
-    gap: 24,
+    gap: 28,
   },
   step: {
     flexDirection: 'row',
-    gap: 16,
-    alignItems: 'flex-start',
-  },
-  number: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1B1B1B',
+    gap: 18,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  numberText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+  // A big number in the brand colour beside each step, in a fixed-width column so the step text
+  // lines up.
+  number: {
+    width: 44,
+    fontFamily: FontFamily.headingBlack,
+    fontSize: 60,
+    lineHeight: 75,
+    color: ACCENT,
+    textAlign: 'center',
   },
   stepText: {
     flex: 1,
     gap: 4,
   },
   stepTitle: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 18,
-    fontWeight: '600',
   },
   stepBody: {
-    color: MUTED,
+    fontFamily: FontFamily.body,
+    // The same dark pink as the step numbers.
+    color: ACCENT,
     fontSize: 16,
     lineHeight: 22,
   },
   footer: {
-    position: 'absolute',
-    bottom: FOOTER_BOTTOM,
-    left: 20,
-    right: 20,
+    marginTop: 'auto',
+    paddingHorizontal: 30,
   },
 });

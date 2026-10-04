@@ -2,13 +2,21 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RetrainBanner } from '@/components/retrain-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, FontFamily } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
 import { clusterAngles, sendVerdict, type Analysis, type AngleCluster } from '@/lib/server';
 
@@ -49,13 +57,17 @@ export default function AnglesScreen() {
   const timers = useRef<ReturnType<typeof setInterval>[]>([]);
   const { width } = useWindowDimensions();
 
-  const { error: frameError } = useFrameAnalysis(cameraRef, ready && phase === 'recording', (analysis, uri) => {
-    // Only frames with exactly one measured head can say anything about angle.
-    if (analysis.faces.length === 1 && analysis.faces[0].pose) {
-      frames.current.push({ id: String(frames.current.length), uri, analysis });
-      setFrameCount(frames.current.length);
-    }
-  });
+  const { error: frameError } = useFrameAnalysis(
+    cameraRef,
+    ready && phase === 'recording',
+    (analysis, uri) => {
+      // Only frames with exactly one measured head can say anything about angle.
+      if (analysis.faces.length === 1 && analysis.faces[0].pose) {
+        frames.current.push({ id: String(frames.current.length), uri, analysis });
+        setFrameCount(frames.current.length);
+      }
+    },
+  );
 
   // Stop the countdown if the screen closes mid-recording.
   useEffect(() => () => timers.current.forEach(clearInterval), []);
@@ -90,7 +102,7 @@ export default function AnglesScreen() {
         setError(
           `Only caught ${taken.length} usable frame${taken.length === 1 ? '' : 's'} at ` +
             `${result.clusters.length} angle${result.clusters.length === 1 ? '' : 's'}. ` +
-            'Keep your face in view and turn a bit further.'
+            'Keep your face in view and turn a bit further.',
         );
         setPhase('intro');
         return;
@@ -124,7 +136,7 @@ export default function AnglesScreen() {
           `angle-${session}-${cluster.frame}`,
           liked.has(cluster.frame) ? 'keep' : 'remove',
           frame.analysis,
-          'angle'
+          'angle',
         );
       }
       setPhase('done');
@@ -147,7 +159,8 @@ export default function AnglesScreen() {
   }
 
   const filming = phase === 'intro' || phase === 'recording' || phase === 'grouping';
-  const prompt = PROMPTS[Math.min(PROMPTS.length - 1, Math.floor((elapsed / RECORD_SECONDS) * PROMPTS.length))];
+  const prompt =
+    PROMPTS[Math.min(PROMPTS.length - 1, Math.floor((elapsed / RECORD_SECONDS) * PROMPTS.length))];
   const cardWidth = (width - Spacing.three * 3) / 2;
   // Learning needs at least one angle liked and one not.
   const canSave = liked.size > 0 && liked.size < clusters.length;
@@ -155,8 +168,13 @@ export default function AnglesScreen() {
   return (
     <ThemedView style={styles.fill}>
       {filming && (
-        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="front" animateShutter={false}
-          onCameraReady={() => setReady(true)} />
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing="front"
+          animateShutter={false}
+          onCameraReady={() => setReady(true)}
+        />
       )}
       <SafeAreaView style={styles.fill} pointerEvents="box-none">
         <View style={styles.header}>
@@ -170,12 +188,15 @@ export default function AnglesScreen() {
           <View style={styles.bottom}>
             <View style={styles.panel}>
               <Text style={styles.panelText}>
-                For {RECORD_SECONDS} seconds, slowly turn your head left, right, up and down while the
-                camera watches. Then pick the angles you like best.
+                For {RECORD_SECONDS} seconds, slowly turn your head left, right, up and down while
+                the camera watches. Then pick the angles you like best.
               </Text>
               {error && <Text style={styles.error}>{error}</Text>}
             </View>
-            <Pressable style={[styles.button, !ready && styles.disabled]} disabled={!ready} onPress={start}>
+            <Pressable
+              style={[styles.button, !ready && styles.disabled]}
+              disabled={!ready}
+              onPress={start}>
               <Text style={styles.buttonText}>{error ? 'Try again' : 'Start'}</Text>
             </Pressable>
           </View>
@@ -223,7 +244,10 @@ export default function AnglesScreen() {
                     style={[styles.card, { width: cardWidth }, on && styles.cardOn]}>
                     {uri && <Image source={{ uri }} style={styles.cardImage} contentFit="cover" />}
                     <View style={styles.cardLabel}>
-                      <Text style={styles.cardText}>{on ? '♥ ' : ''}{item.label}</Text>
+                      <Text style={styles.cardText}>
+                        {on ? '♥ ' : ''}
+                        {item.label}
+                      </Text>
                       <Text style={styles.cardSub}>{item.size} frames</Text>
                     </View>
                   </Pressable>
@@ -232,11 +256,17 @@ export default function AnglesScreen() {
             />
             {error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.footer}>
-              <Pressable style={[styles.button, (!canSave || phase === 'saving') && styles.disabled]}
-                disabled={!canSave || phase === 'saving'} onPress={save}>
-                {phase === 'saving' ? <ActivityIndicator color="#0B2E19" /> : (
+              <Pressable
+                style={[styles.button, (!canSave || phase === 'saving') && styles.disabled]}
+                disabled={!canSave || phase === 'saving'}
+                onPress={save}>
+                {phase === 'saving' ? (
+                  <ActivityIndicator color="#0B2E19" />
+                ) : (
                   <Text style={styles.buttonText}>
-                    {canSave ? `Save ${liked.size} favourite${liked.size === 1 ? '' : 's'}` : 'Pick some, not all'}
+                    {canSave
+                      ? `Save ${liked.size} favourite${liked.size === 1 ? '' : 's'}`
+                      : 'Pick some, not all'}
                   </Text>
                 )}
               </Pressable>
@@ -247,8 +277,8 @@ export default function AnglesScreen() {
         {phase === 'done' && (
           <View style={styles.fill}>
             <ThemedText style={styles.doneText}>
-              Saved. You liked {liked.size} of {clusters.length} angles; the coach learns from these next
-              time it retrains.
+              Saved. You liked {liked.size} of {clusters.length} angles; the coach learns from these
+              next time it retrains.
             </ThemedText>
             <RetrainBanner />
             <View style={styles.footer}>
@@ -273,6 +303,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   centerText: {
+    fontFamily: FontFamily.body,
     textAlign: 'center',
     paddingHorizontal: Spacing.four,
   },
@@ -283,9 +314,9 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: '#fff',
     fontSize: 20,
-    fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowRadius: 4,
   },
@@ -300,8 +331,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   closeText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#fff',
-    fontWeight: '600',
   },
   bottom: {
     flex: 1,
@@ -316,15 +347,17 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   panelText: {
+    fontFamily: FontFamily.body,
     color: '#fff',
     fontSize: 15,
   },
   prompt: {
+    fontFamily: FontFamily.heading,
     color: '#fff',
     fontSize: 24,
-    fontWeight: '700',
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#F87171',
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
@@ -359,10 +392,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.75)',
   },
   cardText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#fff',
-    fontWeight: '700',
   },
   cardSub: {
+    fontFamily: FontFamily.body,
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
   },
@@ -380,8 +414,8 @@ const styles = StyleSheet.create({
     backgroundColor: GREEN,
   },
   buttonText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#0B2E19',
-    fontWeight: '700',
     fontSize: 16,
   },
   disabled: {

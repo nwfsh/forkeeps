@@ -1,18 +1,26 @@
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router, useIsFocused } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FaceOverlay } from '@/components/face-overlay';
+import { ACCENT, INK } from '@/components/onboarding-style';
 import { usePhotos } from '@/components/photos-provider';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { Spacing, FontFamily } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
 import { useMakeupReminder } from '@/hooks/use-makeup-reminder';
 import { useVoiceCoach } from '@/hooks/use-voice-coach';
 import { BURST_SIZE, rankBurst } from '@/lib/burst';
-import { currentPerson, mainRedFlag, redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
+import {
+  currentPerson,
+  mainRedFlag,
+  redFlagMessage,
+  SERVER_URL,
+  type Analysis,
+} from '@/lib/server';
 import { GOOD_CLIP, nameClip } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
@@ -57,8 +65,10 @@ export default function CameraScreen() {
   const lastGroupAt = useRef(0);
   const onNameSaid = useCallback(() => setNamed(true), []);
 
-  const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(cameraRef, ready && isFocused, (frame) =>
-    onFrameRef.current(frame)
+  const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(
+    cameraRef,
+    ready && isFocused,
+    (frame) => onFrameRef.current(frame),
   );
   // The line for the tip on screen: first why the photo can't be judged at all (nobody there, face
   // cut off or covered), then a makeup reminder against their makeup look (colour that's off is
@@ -73,10 +83,7 @@ export default function CameraScreen() {
       ? null
       : redFlag
         ? redFlag.clip
-        : (makeup.tip?.clip ??
-        analysis.warnings[0]?.clip ??
-        instruction?.clip ??
-        GOOD_CLIP);
+        : (makeup.tip?.clip ?? analysis.warnings[0]?.clip ?? instruction?.clip ?? GOOD_CLIP);
   const inGroup = analysis?.subject === 'found';
   const voice = useVoiceCoach(clip, inGroup && !named ? nameClip() : null, onNameSaid);
 
@@ -129,7 +136,7 @@ export default function CameraScreen() {
       add(best.uri, best.analysis, { burst });
       showNotice(
         `${trigger === 'auto' ? 'Auto shot: kept' : 'Kept'} the best of ${uris.length}` +
-          (rest.length ? ` · ${rest.length} more in Review` : '')
+          (rest.length ? ` · ${rest.length} more in Review` : ''),
       );
     } catch (e) {
       setNotice(null);
@@ -191,9 +198,7 @@ export default function CameraScreen() {
       : forThem(makeup.tip?.message ?? analysis?.warnings[0]?.message ?? instruction?.message);
 
   return (
-    <View
-      style={styles.fill}
-      onLayout={(e) => setLayout(e.nativeEvent.layout)}>
+    <View style={styles.fill} onLayout={(e) => setLayout(e.nativeEvent.layout)}>
       {isFocused && (
         <CameraView
           // A new camera per side: onCameraReady only fires once per mount, and the frame
@@ -218,102 +223,215 @@ export default function CameraScreen() {
         />
       )}
 
-      <Animated.View style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} pointerEvents="none" />
+      <Animated.View
+        style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]}
+        pointerEvents="none"
+      />
 
       <SafeAreaView style={styles.hud} pointerEvents="box-none">
-        <View style={styles.topRow}>
-          {tip ? (
-            <View style={[styles.tip, error && styles.tipError]}>
-              <Text style={styles.tipText}>{tip}</Text>
-            </View>
+        {/* Top bar: the coach's voice on the left, shooting modes on the right. */}
+        <View style={styles.topBar}>
+          {voice.canSpeak ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Change coach voice"
+              onPress={voice.next}
+              style={styles.chip}>
+              <SymbolView
+                name={{
+                  ios: voice.persona ? 'speaker.wave.2.fill' : 'speaker.slash.fill',
+                  android: voice.persona ? 'volume_up' : 'volume_off',
+                  web: voice.persona ? 'volume_up' : 'volume_off',
+                }}
+                size={15}
+                tintColor="#FFFFFF"
+              />
+              <Text style={styles.chipText}>
+                {voice.persona ? voice.persona.name : 'Voice off'}
+              </Text>
+            </Pressable>
           ) : (
-            analysis && (
-              <View style={[styles.tip, styles.tipGood]}>
-                <Text style={styles.tipText}>Looks good</Text>
-              </View>
-            )
+            <View />
           )}
-          {error && <Text style={styles.stats}>{error}</Text>}
-          {analysis && !error && (
-            <Text style={styles.stats}>
-              {analysis.faces.length} face{analysis.faces.length === 1 ? '' : 's'} · {fps.toFixed(1)} fps ·{' '}
-              {analysis.ms} ms
-              {analysis.shot?.scored_by === 'model'
-                ? ` · style match ${Math.round(analysis.shot.score * 100)}%`
-                : ''}
-            </Text>
+          <View style={styles.modes}>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Take the photo automatically when it's perfect"
+              accessibilityState={{ checked: auto }}
+              onPress={() => setAuto((a) => !a)}
+              style={[styles.chip, auto && styles.chipOn]}>
+              <SymbolView
+                name={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
+                size={15}
+                tintColor="#FFFFFF"
+              />
+              <Text style={styles.chipText}>Auto</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel={`Burst: take ${BURST_SIZE} and keep the best`}
+              accessibilityState={{ checked: burstMode }}
+              onPress={() => setBurstMode((b) => !b)}
+              style={[styles.chip, burstMode && styles.chipOn]}>
+              <SymbolView
+                name={{
+                  ios: 'square.stack.3d.down.right',
+                  android: 'burst_mode',
+                  web: 'burst_mode',
+                }}
+                size={15}
+                tintColor="#FFFFFF"
+              />
+              <Text style={styles.chipText}>Burst</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Find your best angles"
+              onPress={() => router.push('/angles')}
+              style={styles.iconButton}>
+              <SymbolView
+                name={{ ios: 'viewfinder', android: 'center_focus_weak', web: 'center_focus_weak' }}
+                size={18}
+                tintColor="#FFFFFF"
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* The coach's tip, with a dot for what kind it is, and the live numbers under it. */}
+        <View style={styles.tipArea} pointerEvents="none">
+          {(tip || analysis) && (
+            <View style={styles.tip}>
+              <View
+                style={[
+                  styles.tipDot,
+                  error || redFlag ? styles.dotProblem : tip ? styles.dotCoach : styles.dotGood,
+                ]}
+              />
+              <Text style={styles.tipText}>{tip ?? 'Looks good'}</Text>
+            </View>
           )}
           {notice ? (
-            <View style={[styles.tip, styles.tipNotice]}>
+            <View style={styles.tip}>
+              <View style={[styles.tipDot, styles.dotGood]} />
               <Text style={styles.tipText}>{notice}</Text>
             </View>
           ) : (
             auto &&
             analysis?.shot?.perfect &&
             !capturing && (
-              <View style={[styles.tip, styles.tipGood]}>
+              <View style={styles.tip}>
+                <View style={[styles.tipDot, styles.dotGood]} />
                 <Text style={styles.tipText}>Perfect: hold still…</Text>
               </View>
             )
           )}
-          {voice.canSpeak && (
-            <Pressable accessibilityLabel="Change coach voice" style={styles.pill} onPress={voice.next}>
-              <Text style={styles.pillText}>{voice.persona ? `Voice: ${voice.persona.name}` : 'Voice off'}</Text>
-            </Pressable>
+          {analysis && !error && (
+            <Text style={styles.stats}>
+              {analysis.faces.length} face{analysis.faces.length === 1 ? '' : 's'} ·{' '}
+              {fps.toFixed(1)} fps · {analysis.ms} ms
+              {analysis.shot?.scored_by === 'model'
+                ? ` · style match ${Math.round(analysis.shot.score * 100)}%`
+                : ''}
+            </Text>
           )}
         </View>
 
-        <View style={styles.modes}>
-          <Pressable
-            accessibilityLabel="Take the photo automatically when it's perfect"
-            accessibilityState={{ selected: auto }}
-            style={[styles.pill, auto && styles.pillOn]}
-            onPress={() => setAuto((a) => !a)}>
-            <Text style={styles.pillText}>Auto {auto ? 'on' : 'off'}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Burst: take ${BURST_SIZE} and keep the best`}
-            accessibilityState={{ selected: burstMode }}
-            style={[styles.pill, burstMode && styles.pillOn]}
-            onPress={() => setBurstMode((b) => !b)}>
-            <Text style={styles.pillText}>Burst {burstMode ? 'on' : 'off'}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Find your best angles"
-            style={styles.pill}
-            onPress={() => router.push('/angles')}>
-            <Text style={styles.pillText}>Angles</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.controls}>
-          <View style={styles.side}>
-            {photos[0] && (
-              <Pressable accessibilityLabel="View photos" onPress={() => router.navigate('/photos')}>
-                <Image source={{ uri: photos[0].uri }} style={styles.thumb} />
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{photos.length}</Text>
-                </View>
-              </Pressable>
+        {/* Bottom: lenses above the shutter, then last photo · shutter · flip, like the iPhone. */}
+        <View style={styles.bottom}>
+          <View style={styles.zoomRow}>
+            {facing === 'back' && ultraWideLens && (
+              <View style={styles.zoom}>
+                {(
+                  [
+                    ['0.5', true],
+                    ['1×', false],
+                  ] as const
+                ).map(([label, wide]) => (
+                  <Pressable
+                    key={label}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ultraWide === wide }}
+                    onPress={() => setUltraWide(wide)}
+                    hitSlop={6}
+                    style={[styles.zoomOption, ultraWide === wide && styles.zoomSelected]}>
+                    <Text style={[styles.zoomText, ultraWide === wide && styles.zoomTextSelected]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             )}
           </View>
 
-          <Pressable
-            accessibilityLabel="Take photo"
-            disabled={capturing}
-            style={({ pressed }) => [styles.shutter, (pressed || capturing) && styles.shutterPressed]}
-            onPress={takePhoto}
-          />
+          <View style={styles.controls}>
+            <View style={styles.side}>
+              {/* The way to the gallery: the last photo, or a gallery button before there is one. */}
+              {photos[0] ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open the photo gallery"
+                  onPress={() => router.push('/photos')}>
+                  <Image source={{ uri: photos[0].uri }} style={styles.thumb} />
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{photos.length}</Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Open the photo gallery"
+                  onPress={() => router.push('/photos')}
+                  style={styles.roundButton}>
+                  <SymbolView
+                    name={{
+                      ios: 'photo.on.rectangle',
+                      android: 'photo_library',
+                      web: 'photo_library',
+                    }}
+                    size={20}
+                    tintColor="#FFFFFF"
+                  />
+                </Pressable>
+              )}
+            </View>
 
-          <View style={[styles.side, styles.sideRight]}>
-            {facing === 'back' && ultraWideLens && (
-              <Pressable style={styles.pill} onPress={() => setUltraWide((u) => !u)}>
-                <Text style={styles.pillText}>{ultraWide ? '0.5x' : '1x'}</Text>
-              </Pressable>
-            )}
-            <Pressable style={styles.pill} onPress={flip}>
-              <Text style={styles.pillText}>Flip</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={burstMode ? `Take ${BURST_SIZE} and keep the best` : 'Take photo'}
+              disabled={capturing}
+              onPress={takePhoto}
+              style={styles.shutter}>
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.shutterInner,
+                    burstMode && styles.shutterBurst,
+                    (pressed || capturing) && styles.shutterPressed,
+                  ]}
+                />
+              )}
             </Pressable>
+
+            <View style={styles.side}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  facing === 'back' ? 'Switch to the front camera' : 'Switch to the back camera'
+                }
+                onPress={flip}
+                style={styles.roundButton}>
+                <SymbolView
+                  name={{
+                    ios: 'arrow.triangle.2.circlepath',
+                    android: 'flip_camera_ios',
+                    web: 'flip_camera_ios',
+                  }}
+                  size={22}
+                  tintColor="#FFFFFF"
+                />
+              </Pressable>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -333,84 +451,176 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
   },
   message: {
+    fontFamily: FontFamily.body,
     color: '#fff',
     fontSize: 17,
     textAlign: 'center',
   },
   hud: {
     flex: 1,
+    paddingBottom: Spacing.four,
+  },
+  topBar: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingBottom: BottomTabInset + Spacing.three,
-  },
-  topRow: {
     alignItems: 'center',
-    gap: Spacing.two,
-    paddingTop: Spacing.two,
-  },
-  tip: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  tipGood: {
-    backgroundColor: 'rgba(22,163,74,0.75)',
-  },
-  tipError: {
-    backgroundColor: 'rgba(220,38,38,0.8)',
-  },
-  tipText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  stats: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
+    paddingHorizontal: 26,
+    paddingTop: 8,
   },
   modes: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  chipOn: {
+    backgroundColor: ACCENT,
+  },
+  chipText: {
+    fontFamily: FontFamily.bodyBold,
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    marginBottom: Spacing.three,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  pillOn: {
-    backgroundColor: 'rgba(22,163,74,0.85)',
+  tipArea: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 26,
+    paddingTop: 14,
   },
-  tipNotice: {
-    backgroundColor: 'rgba(37,99,235,0.8)',
+  tip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    maxWidth: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(20,20,20,0.72)',
+  },
+  tipDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotCoach: {
+    backgroundColor: ACCENT,
+  },
+  dotGood: {
+    backgroundColor: '#3DDC84',
+  },
+  dotProblem: {
+    backgroundColor: '#F87171',
+  },
+  tipText: {
+    flexShrink: 1,
+    fontFamily: FontFamily.bodyBold,
+    color: '#FFFFFF',
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  stats: {
+    fontFamily: FontFamily.body,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+  },
+  bottom: {
+    marginTop: 'auto',
+    gap: 14,
+  },
+  zoomRow: {
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoom: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 3,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  zoomOption: {
+    minWidth: 34,
+    height: 30,
+    paddingHorizontal: 6,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomSelected: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  zoomText: {
+    fontFamily: FontFamily.bodyBold,
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
+  zoomTextSelected: {
+    color: INK,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: 38,
   },
   side: {
     flex: 1,
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  sideRight: {
-    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   shutter: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 5,
-    borderColor: '#fff',
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+  },
+  // Burst on: the shutter's centre in the brand colour, so the mode is visible where you press.
+  shutterBurst: {
+    backgroundColor: ACCENT,
   },
   shutterPressed: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    transform: [{ scale: 0.9 }],
+    opacity: 0.8,
+  },
+  roundButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   thumb: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#FFFFFF',
   },
   badge: {
     position: 'absolute',
@@ -422,12 +632,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: ACCENT,
   },
   badgeText: {
-    color: '#000',
+    fontFamily: FontFamily.bodyBold,
+    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
   },
   flash: {
     backgroundColor: '#fff',
@@ -439,7 +649,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   pillText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#fff',
-    fontWeight: '600',
   },
 });

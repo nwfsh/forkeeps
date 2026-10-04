@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import type { Verdict } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 // A drag past this share of the screen width, or a flick faster than FLICK (px/s), decides.
 const DECIDE_AT = 0.3;
@@ -32,7 +33,10 @@ type Props = {
 };
 
 /** A photo you drag right to keep or left to remove, leaning and stamped as it goes. */
-export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard({ uri, onDecide }, ref) {
+export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
+  { uri, onDecide },
+  ref,
+) {
   const { width } = useWindowDimensions();
   const x = useSharedValue(0);
   const y = useSharedValue(0);
@@ -40,9 +44,11 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard({
   function flyOff(verdict: Verdict) {
     'worklet';
     const direction = verdict === 'keep' ? 1 : -1;
-    x.set(withTiming(direction * width * 1.5, { duration: FLY_MS }, (finished) => {
-      if (finished) runOnJS(onDecide)(verdict);
-    }));
+    x.set(
+      withTiming(direction * width * 1.5, { duration: FLY_MS }, (finished) => {
+        if (finished) runOnJS(onDecide)(verdict);
+      }),
+    );
   }
 
   useImperativeHandle(ref, () => ({ swipe: (verdict) => flyOff(verdict) }));
@@ -92,7 +98,13 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard({
 });
 
 /** The round ✕ or ♥ button under a swipe card, which throws the card the same way a swipe does. */
-export function RoundButton({ label, color, disabled, onPress, accessibilityLabel }: {
+export function RoundButton({
+  label,
+  color,
+  disabled,
+  onPress,
+  accessibilityLabel,
+}: {
   label: string;
   color: string;
   disabled: boolean;
@@ -105,7 +117,11 @@ export function RoundButton({ label, color, disabled, onPress, accessibilityLabe
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.round, { borderColor: color }, (pressed || disabled) && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.round,
+        { borderColor: color },
+        (pressed || disabled) && styles.pressed,
+      ]}>
       <Text style={[styles.roundLabel, { color }]}>{label}</Text>
     </Pressable>
   );
@@ -165,12 +181,12 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   roundLabel: {
+    fontFamily: FontFamily.heading,
     fontSize: 28,
-    fontWeight: '700',
   },
   stampText: {
+    fontFamily: FontFamily.headingBlack,
     fontSize: 32,
-    fontWeight: '800',
     letterSpacing: 2,
   },
   keepText: {

@@ -17,9 +17,11 @@ import {
   MUTED,
   PillButton,
   StepDots,
+  Appear,
 } from '@/components/onboarding-style';
 import { cleanProfileName } from '@/lib/profile';
 import { currentPerson, setPerson } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 /** Names this phone's taste profile: the picks train it and the camera coaches with it. */
 export default function ProfileScreen() {
@@ -46,15 +48,17 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
-          <StepDots step={1} steps={3} />
+          <View>
+            <StepDots step={1} steps={3} />
+          </View>
 
-          <View style={styles.copy}>
+          <Appear order={1} style={styles.copy}>
             <Text style={styles.title}>Name your profile</Text>
             <Text style={styles.subtitle}>
               Your picks teach it what you like, and the camera coaches you with it. Use the same
               name to keep training it later.
             </Text>
-          </View>
+          </Appear>
 
           <View style={styles.field}>
             <TextInput
@@ -77,7 +81,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 26 }]}>
           <PillButton label="Continue" onPress={save} disabled={!clean} />
         </View>
       </KeyboardAvoidingView>
@@ -95,7 +99,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 34,
     gap: 20,
   },
   topBar: {
@@ -103,22 +107,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   back: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   copy: {
     gap: 10,
     marginTop: 12,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
   },
   subtitle: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
     lineHeight: 24,
@@ -134,17 +139,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   input: {
+    fontFamily: FontFamily.body,
     color: INK,
     fontSize: 20,
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
   hint: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 14,
   },
   footer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     paddingTop: 12,
   },
 });

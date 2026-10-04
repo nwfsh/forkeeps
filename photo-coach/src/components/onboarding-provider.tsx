@@ -23,6 +23,8 @@ type OnboardingContextValue = {
   restart: (preview?: boolean) => void;
   /** Whether this run of onboarding is a preview with Skip buttons. */
   preview: boolean;
+  /** Whether onboarding was opened again after finishing it (Replay intro), so there's a camera to go back to. */
+  replaying: boolean;
 };
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
@@ -32,15 +34,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [results, setResults] = useState<RetrainResult | null>(null);
   const [preview, setPreview] = useState(false);
+  const [replaying, setReplaying] = useState(false);
 
   function finish() {
     setPreview(false);
+    setReplaying(false);
     saveFinished(true);
     setFinished(true);
   }
 
   function restart(preview = false) {
     setPreview(preview);
+    setReplaying(true);
     saveFinished(false);
     setSnapshots([]);
     setResults(null);
@@ -59,6 +64,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         finish,
         restart,
         preview,
+        replaying,
       }}>
       {children}
     </OnboardingContext.Provider>

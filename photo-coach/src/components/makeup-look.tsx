@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
+import { GradientBackground, INK, MUTED, PillButton, Appear } from '@/components/onboarding-style';
 import { clearMakeupLook, loadMakeupLook, saveMakeupLook, type MakeupLook } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 // How much redder than the forehead the lips or cheeks are, in words (server/makeup.py measures).
 function strength(value: number, strong: number, soft: number) {
@@ -90,7 +91,7 @@ export function MakeupLookScreen({ doneLabel, onDone }: { doneLabel: string; onD
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 },
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 50 },
         ]}>
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={12}>
@@ -107,7 +108,7 @@ export function MakeupLookScreen({ doneLabel, onDone }: { doneLabel: string; onD
           </Text>
         </View>
 
-        <View style={styles.card}>
+        <Appear kind="slide" order={2} style={styles.card}>
           {loading || busy ? (
             <View style={styles.center}>
               <ActivityIndicator color={INK} />
@@ -162,7 +163,7 @@ export function MakeupLookScreen({ doneLabel, onDone }: { doneLabel: string; onD
               )}
             </View>
           )}
-        </View>
+        </Appear>
 
         {/* Kept at the bottom of the screen, below the card. */}
         <View style={styles.footer}>
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     gap: 20,
   },
   footer: {
@@ -206,11 +207,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   back: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   optional: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 15,
   },
@@ -219,13 +221,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
   },
   subtitle: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
     lineHeight: 24,
@@ -275,16 +278,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   swatchLabel: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 17,
-    fontWeight: '600',
   },
   muted: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 15,
     lineHeight: 21,
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#B42318',
     fontSize: 15,
   },
@@ -305,13 +310,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   outlineText: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   link: {
+    fontFamily: FontFamily.bodyBold,
     color: MUTED,
     fontSize: 15,
-    fontWeight: '600',
   },
 });

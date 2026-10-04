@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboarding } from '@/components/onboarding-provider';
 import type { RetrainResult } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 // The pages in order, for the preview's Skip button.
 const PAGES = [
@@ -78,8 +79,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(26,26,26,0.75)',
   },
   skipText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '600',
   },
 });

@@ -4,9 +4,18 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboarding } from '@/components/onboarding-provider';
-import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
+import {
+  GradientBackground,
+  INK,
+  MUTED,
+  PillButton,
+  ACCENT,
+  BackLink,
+  Appear,
+} from '@/components/onboarding-style';
 import { confidenceLevel } from '@/lib/onboarding';
 import type { RetrainResult } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 type Weights = Record<string, number>;
 
@@ -89,17 +98,22 @@ export default function ResultsScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
+          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 50 },
         ]}>
-        <Text style={styles.title}>Your profile</Text>
+        <View>
+          <BackLink />
+        </View>
+        <View>
+          <Text style={styles.title}>Your profile</Text>
+        </View>
 
         <View style={styles.card}>
           {results ? (
             <>
               <Text style={styles.lead}>You care most about:</Text>
               <View style={styles.groups}>
-                {groups.map((group) => (
-                  <View key={group.title} style={styles.group}>
+                {groups.map((group, i) => (
+                  <Appear key={group.title} kind="slide" order={3 + i} style={styles.group}>
                     <View style={styles.groupHeading}>
                       <SymbolView name={group.icon} size={22} tintColor={INK} />
                       <Text style={styles.groupTitle}>{group.title}</Text>
@@ -113,7 +127,7 @@ export default function ResultsScreen() {
                         ]}
                       />
                     </View>
-                  </View>
+                  </Appear>
                 ))}
               </View>
               <View style={styles.note}>
@@ -155,14 +169,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 34,
     gap: 24,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 36,
-    lineHeight: 42,
-    fontWeight: '700',
+    lineHeight: 45,
     letterSpacing: -0.6,
   },
   card: {
@@ -177,6 +191,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   lead: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
   },
@@ -192,11 +207,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   groupTitle: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 18,
-    fontWeight: '600',
   },
   detail: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 14,
     marginLeft: 34,
@@ -211,7 +227,7 @@ const styles = StyleSheet.create({
   bar: {
     height: 10,
     borderRadius: 5,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   note: {
     borderRadius: 20,
@@ -221,6 +237,7 @@ const styles = StyleSheet.create({
     borderColor: '#EFEBE8',
   },
   noteText: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 16,
     lineHeight: 22,
@@ -233,8 +250,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   againText: {
+    fontFamily: FontFamily.bodyBold,
     color: MUTED,
     fontSize: 15,
-    fontWeight: '600',
   },
 });

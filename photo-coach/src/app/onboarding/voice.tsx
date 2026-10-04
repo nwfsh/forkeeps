@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
+import {
+  GradientBackground,
+  INK,
+  MUTED,
+  PillButton,
+  ACCENT,
+  Appear,
+} from '@/components/onboarding-style';
 import {
   downloadClip,
   fetchPersonas,
@@ -14,6 +21,7 @@ import {
   saveVoiceChoice,
   type Persona,
 } from '@/lib/voice';
+import { FontFamily } from '@/constants/theme';
 
 /**
  * Picks the coach's voice (server/personas.py) before the camera, with a sample of each. The
@@ -101,7 +109,7 @@ export default function VoiceScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 120 },
+          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 130 },
         ]}>
         <View style={styles.topBar}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={12}>
@@ -121,60 +129,61 @@ export default function VoiceScreen() {
 
         <View style={styles.cards}>
           {personas &&
-            options.map((option) => {
+            options.map((option, index) => {
               const selected = choice === option.id;
               const recorded = !!option.persona?.clips.length;
               const playing =
                 sample?.persona === option.id && (sample.uri === null || status.playing);
               return (
-                <Pressable
-                  key={option.id ?? 'none'}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  onPress={() => choose(option.id)}
-                  style={[styles.card, selected && styles.cardSelected]}>
-                  <View style={styles.cardText}>
-                    <Text style={styles.name}>{option.name}</Text>
-                    <Text style={styles.description}>
-                      {option.persona && !recorded ? 'Not recorded yet' : option.description}
-                    </Text>
-                  </View>
-                  {option.persona && recorded && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Hear ${option.name}`}
-                      onPress={() => option.persona && play(option.persona)}
-                      hitSlop={8}
-                      style={styles.play}>
-                      {sample?.persona === option.id && sample.uri === null ? (
-                        <ActivityIndicator color={INK} />
-                      ) : (
-                        <SymbolView
-                          name={
-                            playing
-                              ? {
-                                  ios: 'speaker.wave.2.fill',
-                                  android: 'volume_up',
-                                  web: 'volume_up',
-                                }
-                              : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }
-                          }
-                          size={18}
-                          tintColor={INK}
-                        />
-                      )}
-                    </Pressable>
-                  )}
-                  <View style={[styles.radio, selected && styles.radioSelected]}>
-                    {selected && <View style={styles.radioDot} />}
-                  </View>
-                </Pressable>
+                <Appear key={option.id ?? 'none'} kind="slide" order={2 + index}>
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    onPress={() => choose(option.id)}
+                    style={[styles.card, selected && styles.cardSelected]}>
+                    <View style={styles.cardText}>
+                      <Text style={styles.name}>{option.name}</Text>
+                      <Text style={styles.description}>
+                        {option.persona && !recorded ? 'Not recorded yet' : option.description}
+                      </Text>
+                    </View>
+                    {option.persona && recorded && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Hear ${option.name}`}
+                        onPress={() => option.persona && play(option.persona)}
+                        hitSlop={8}
+                        style={styles.play}>
+                        {sample?.persona === option.id && sample.uri === null ? (
+                          <ActivityIndicator color={INK} />
+                        ) : (
+                          <SymbolView
+                            name={
+                              playing
+                                ? {
+                                    ios: 'speaker.wave.2.fill',
+                                    android: 'volume_up',
+                                    web: 'volume_up',
+                                  }
+                                : { ios: 'play.fill', android: 'play_arrow', web: 'play_arrow' }
+                            }
+                            size={18}
+                            tintColor={INK}
+                          />
+                        )}
+                      </Pressable>
+                    )}
+                    <View style={[styles.radio, selected && styles.radioSelected]}>
+                      {selected && <View style={styles.radioDot} />}
+                    </View>
+                  </Pressable>
+                </Appear>
               );
             })}
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 26 }]}>
         <PillButton label="Continue" onPress={done} />
       </View>
     </View>
@@ -187,7 +196,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   content: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 34,
     gap: 24,
   },
   topBar: {
@@ -195,26 +204,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   back: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   copy: {
     gap: 10,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
   },
   subtitle: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
     lineHeight: 24,
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#B42318',
     fontSize: 15,
   },
@@ -237,18 +248,19 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardSelected: {
-    borderColor: INK,
+    borderColor: ACCENT,
   },
   cardText: {
     flex: 1,
     gap: 4,
   },
   name: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 18,
-    fontWeight: '600',
   },
   description: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 15,
     lineHeight: 20,
@@ -271,18 +283,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioSelected: {
-    borderColor: INK,
+    borderColor: ACCENT,
   },
   radioDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   footer: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 30,
+    right: 30,
     bottom: 0,
   },
 });

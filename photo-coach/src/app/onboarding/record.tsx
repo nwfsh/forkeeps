@@ -7,9 +7,10 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboarding, type Snapshot } from '@/components/onboarding-provider';
-import { INK, MUTED, StepDots } from '@/components/onboarding-style';
+import { INK, MUTED, StepDots, ACCENT } from '@/components/onboarding-style';
 import { snapshot } from '@/hooks/use-frame-analysis';
 import { analyzeFrame, learnFace, pickSnapshots } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
 const RECORD_SECONDS = 15;
 // A 3-2-1 before recording, so they're settled by the time frames are kept.
@@ -35,7 +36,6 @@ const TO_WIDE = 1.4;
 const STEP = 2;
 const STEPS = 3;
 const CREAM = '#F7F4EE';
-const ROSE = '#C9466F';
 
 type Phase = 'intro' | 'countdown' | 'recording' | 'analysing';
 
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: CREAM,
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     paddingBottom: 20,
     gap: 6,
   },
@@ -413,13 +413,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '700',
+    lineHeight: 38,
     letterSpacing: -0.5,
   },
   subtitle: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 17,
     lineHeight: 23,
@@ -435,16 +436,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bigCount: {
+    fontFamily: FontFamily.headingBlack,
     color: '#fff',
     fontSize: 120,
-    fontWeight: '800',
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 12,
   },
   card: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 22,
+    right: 22,
     bottom: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -464,15 +465,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: ROSE,
+    backgroundColor: ACCENT,
   },
   time: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 24,
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   cardText: {
+    fontFamily: FontFamily.body,
     color: INK,
     fontSize: 16,
   },
@@ -484,19 +486,20 @@ const styles = StyleSheet.create({
   },
   bar: {
     height: 4,
-    backgroundColor: ROSE,
+    backgroundColor: ACCENT,
   },
   barHidden: {
     width: 0,
   },
   hint: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 14,
     textAlign: 'center',
   },
   controls: {
     paddingTop: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 34,
     gap: 14,
     backgroundColor: '#FFFFFF',
   },
@@ -526,13 +529,13 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: ROSE,
+    backgroundColor: ACCENT,
   },
   stop: {
     width: 38,
     height: 38,
     borderRadius: 8,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   zoom: {
     flexDirection: 'row',
@@ -551,15 +554,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   zoomSelected: {
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   zoomText: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 14,
   },
   zoomTextSelected: {
+    fontFamily: FontFamily.bodyBold,
     color: '#FFFFFF',
-    fontWeight: '600',
   },
   round: {
     width: 48,

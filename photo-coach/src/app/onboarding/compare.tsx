@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboarding, type Snapshot } from '@/components/onboarding-provider';
@@ -12,9 +12,16 @@ import {
   MUTED,
   PillButton,
   StepDots,
+  ACCENT,
+  PRIMARY,
+  BackLink,
+  Appear,
 } from '@/components/onboarding-style';
 import { nextPair, retrainModel, sendPick, type NextPair, type SessionPick } from '@/lib/server';
+import { FontFamily } from '@/constants/theme';
 
+// After "Keep picking", the done pop-up comes back this many picks later.
+const ASK_AGAIN_AFTER = 10;
 // How long the chosen photo shows its check before the next pair.
 const CHOSEN_MS = 450;
 
@@ -39,6 +46,8 @@ export default function CompareScreen() {
   const [error, setError] = useState<string | null>(null);
   // The photo just tapped, shown with a check until its pick is sent.
   const [chosen, setChosen] = useState<string | null>(null);
+  // The pick count at which to ask "Done deciding?"; the minimum at first (see askDone).
+  const [askAt, setAskAt] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
 
   const train = useCallback(async () => {
@@ -110,6 +119,7 @@ export default function CompareScreen() {
   const max = step?.max ?? 40;
   // Counts toward the minimum first, then toward the most it will ask.
   const goal = count < min ? min : max;
+  const askDone = count >= (askAt ?? min) && !training && !busy && !step?.stop && !error;
 
   return (
     <View style={styles.screen}>
@@ -117,9 +127,14 @@ export default function CompareScreen() {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + 36, paddingBottom: insets.bottom + 16 },
+          { paddingTop: insets.top + 36, paddingBottom: insets.bottom + 26 },
         ]}>
-        <StepDots step={3} steps={3} />
+        <View>
+          <BackLink />
+        </View>
+        <View>
+          <StepDots step={3} steps={3} />
+        </View>
         <View style={styles.heading}>
           <Text style={styles.title}>Which do you prefer?</Text>
           <Text style={styles.lead}>
@@ -128,7 +143,7 @@ export default function CompareScreen() {
         </View>
 
         {/* The photos and progress in the card, near the top; the other choices at the bottom. */}
-        <View style={styles.body}>
+        <Appear kind="slide" order={2} style={styles.body}>
           <View style={styles.card}>
             {a && b && !training && (
               <View style={styles.pair}>
@@ -235,29 +250,45 @@ export default function CompareScreen() {
                 hitSlop={8}>
                 <Text style={styles.skip}>Can’t decide? Skip this pair</Text>
               </Pressable>
-              {/* From the minimum on, they can stop whenever they've had enough. */}
-              {count >= min && (
-                <View style={styles.doneRow}>
-                  <Text style={styles.doneQuestion}>Done deciding?</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={busy}
-                    onPress={train}
-                    style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}>
-                    <Text style={styles.doneText}>Show my results</Text>
-                    <SymbolView
-                      name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
-                      size={16}
-                      weight="semibold"
-                      tintColor="#FFFFFF"
-                    />
-                  </Pressable>
-                </View>
-              )}
             </View>
           )}
-        </View>
+        </Appear>
       </View>
+
+      {/* From the minimum on, a pop-up offers the results; keeping going asks again later. */}
+      <Modal
+        visible={askDone}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAskAt(count + ASK_AGAIN_AFTER)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>Done deciding?</Text>
+            <Text style={styles.dialogBody}>
+              You’ve made enough picks to build your profile. Keep going to teach it more, or see
+              what it’s learned.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={train}
+              style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}>
+              <Text style={styles.doneText}>Show my results</Text>
+              <SymbolView
+                name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                size={16}
+                weight="semibold"
+                tintColor="#FFFFFF"
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setAskAt(count + ASK_AGAIN_AFTER)}
+              style={({ pressed }) => [styles.keepButton, pressed && styles.pressed]}>
+              <Text style={styles.keepText}>Keep picking</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -269,14 +300,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 26,
     gap: 16,
   },
   title: {
+    fontFamily: FontFamily.heading,
     color: INK,
     fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '700',
+    lineHeight: 43,
     letterSpacing: -0.6,
   },
   heading: {
@@ -300,6 +331,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   lead: {
+    fontFamily: FontFamily.body,
     paddingHorizontal: 4,
     color: MUTED,
     fontSize: 17,
@@ -323,7 +355,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   photoChosen: {
-    borderColor: INK,
+    borderColor: ACCENT,
   },
   photoFaded: {
     opacity: 0.4,
@@ -338,7 +370,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -351,15 +383,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   labelDark: {
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   labelLight: {
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
   labelText: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 15,
-    fontWeight: '600',
   },
   labelTextDark: {
     color: '#FFFFFF',
@@ -373,6 +405,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#B42318',
     fontSize: 15,
     textAlign: 'center',
@@ -382,6 +415,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   count: {
+    fontFamily: FontFamily.body,
     color: INK,
     fontSize: 16,
   },
@@ -394,7 +428,7 @@ const styles = StyleSheet.create({
   bar: {
     height: 10,
     borderRadius: 5,
-    backgroundColor: INK,
+    backgroundColor: ACCENT,
   },
   actions: {
     alignItems: 'center',
@@ -413,40 +447,68 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   tieText: {
+    fontFamily: FontFamily.bodyBold,
     color: INK,
     fontSize: 16,
-    fontWeight: '600',
   },
   skip: {
+    fontFamily: FontFamily.body,
     color: MUTED,
     fontSize: 16,
   },
-  doneRow: {
-    alignSelf: 'stretch',
-    flexDirection: 'row',
+  backdrop: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingTop: 4,
+    justifyContent: 'center',
+    padding: 28,
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  doneQuestion: {
-    flexShrink: 1,
+  dialog: {
+    alignSelf: 'stretch',
+    gap: 14,
+    padding: 24,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+  },
+  dialogTitle: {
+    fontFamily: FontFamily.heading,
     color: INK,
+    fontSize: 26,
+    lineHeight: 33,
+  },
+  dialogBody: {
+    fontFamily: FontFamily.body,
+    color: MUTED,
     fontSize: 16,
-    fontWeight: '600',
+    lineHeight: 23,
+    marginBottom: 6,
   },
   doneButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    height: 46,
+    height: 52,
     paddingHorizontal: 20,
     borderRadius: 999,
-    backgroundColor: INK,
+    backgroundColor: PRIMARY,
   },
   doneText: {
+    fontFamily: FontFamily.bodyBold,
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+  },
+  keepButton: {
+    height: 52,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keepText: {
+    fontFamily: FontFamily.bodyBold,
+    color: INK,
+    fontSize: 16,
   },
 });

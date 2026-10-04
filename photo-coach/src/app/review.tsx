@@ -9,7 +9,7 @@ import { RetrainBanner } from '@/components/retrain-banner';
 import { NextCard, RoundButton, SwipeCard, type SwipeCardHandle } from '@/components/swipe-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, FontFamily } from '@/constants/theme';
 import { sendVerdict, type Verdict } from '@/lib/server';
 
 /**
@@ -47,7 +47,9 @@ export default function ReviewScreen() {
         saveToLibrary(current.uri);
       } else remove(current.id);
     } catch (e) {
-      setError(`Couldn't save that, so nothing changed. ${e instanceof Error ? e.message : String(e)}`);
+      setError(
+        `Couldn't save that, so nothing changed. ${e instanceof Error ? e.message : String(e)}`,
+      );
       setAttempt((n) => n + 1);
     } finally {
       setSaving(false);
@@ -65,7 +67,9 @@ export default function ReviewScreen() {
       await MediaLibrary.Asset.create(uri);
       setLibraryNote(null);
     } catch (e) {
-      setLibraryNote(`Kept here, but saving to Photos failed: ${e instanceof Error ? e.message : String(e)}`);
+      setLibraryNote(
+        `Kept here, but saving to Photos failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -90,7 +94,12 @@ export default function ReviewScreen() {
         <View style={styles.deck}>
           {next && <NextCard key={next.id} uri={next.uri} />}
           {current && (
-            <SwipeCard key={`${current.id}/${attempt}`} ref={card} uri={current.uri} onDecide={decide} />
+            <SwipeCard
+              key={`${current.id}/${attempt}`}
+              ref={card}
+              uri={current.uri}
+              onDecide={decide}
+            />
           )}
         </View>
 
@@ -102,10 +111,20 @@ export default function ReviewScreen() {
         )}
         {current && (
           <View style={styles.buttons}>
-            <RoundButton label="✕" color="#F87171" disabled={saving} onPress={() => card.current?.swipe('remove')}
-              accessibilityLabel="Remove photo" />
-            <RoundButton label="♥" color="#3DDC84" disabled={saving} onPress={() => card.current?.swipe('keep')}
-              accessibilityLabel="Keep photo" />
+            <RoundButton
+              label="✕"
+              color="#F87171"
+              disabled={saving}
+              onPress={() => card.current?.swipe('remove')}
+              accessibilityLabel="Remove photo"
+            />
+            <RoundButton
+              label="♥"
+              color="#3DDC84"
+              disabled={saving}
+              onPress={() => card.current?.swipe('keep')}
+              accessibilityLabel="Keep photo"
+            />
           </View>
         )}
       </SafeAreaView>
@@ -137,12 +156,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   error: {
+    fontFamily: FontFamily.body,
     color: '#F87171',
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
   },
   note: {
+    fontFamily: FontFamily.body,
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
