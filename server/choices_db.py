@@ -65,6 +65,24 @@ CREATE TABLE IF NOT EXISTS verdicts (
     at       TEXT NOT NULL,
     UNIQUE (person, photo)
 );
+-- Pairs someone said were equally good ("It's a tie"), in the app or the Streamlit compare tool.
+CREATE TABLE IF NOT EXISTS ties (
+    id     INTEGER PRIMARY KEY,
+    person TEXT NOT NULL,
+    a      TEXT NOT NULL,
+    b      TEXT NOT NULL,
+    at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ties_by_person ON ties (person, id);
+-- What the app measured on a photo it asked someone to compare (choices only hold photo ids;
+-- the Streamlit tools measure their photos from disk instead).
+CREATE TABLE IF NOT EXISTS photo_features (
+    person   TEXT NOT NULL,
+    photo    TEXT NOT NULL,
+    -- ranker.photo_features() as JSON.
+    features TEXT NOT NULL,
+    PRIMARY KEY (person, photo)
+);
 """
 VERDICTS = ("keep", "remove")
 
@@ -200,6 +218,66 @@ def load_verdicts(name: str) -> list[dict]:
         rows = conn.execute("SELECT * FROM verdicts WHERE person = ? ORDER BY id", (person_key(name),))
         return [{"photo": r["photo"], "verdict": r["verdict"], "at": r["at"],
                  "features": None if r["features"] is None else json.loads(r["features"])} for r in rows]
+
+
+def save_pick(name: str, winner: str, loser: str, winner_features: dict, loser_features: dict) -> None:
+    """Record that `winner` was picked over `loser` in the app, with what was measured on each."""
+    with closing(connect()) as conn, conn:
+        for photo, features in ((winner, winner_features), (loser, loser_features)):
+            conn.execute("INSERT OR REPLACE INTO photo_features (person, photo, features) VALUES (?, ?, ?)",
+                         (person_key(name), photo, json.dumps(features)))
+    add(name, winner, loser, None)
+
+
+def save_measured_tie(name: str, a: str, b: str, a_features: dict, b_features: dict) -> None:
+    """Record that the app's photos `a` and `b` were equally good, with what was measured on each."""
+    with closing(connect()) as conn, conn:
+        for photo, features in ((a, a_features), (b, b_features)):
+            conn.execute("INSERT OR REPLACE INTO photo_features (person, photo, features) VALUES (?, ?, ?)",
+                         (person_key(name), photo, json.dumps(features)))
+    add_tie(name, a, b)
+
+
+def add_tie(name: str, a: str, b: str, at: str = None) -> None:
+    at = at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with closing(connect()) as conn, conn:
+        conn.execute("INSERT INTO ties (person, a, b, at) VALUES (?, ?, ?, ?)", (person_key(name), a, b, at))
+
+
+def load_ties(name: str) -> list[dict]:
+    """Someone's ties, oldest first."""
+    with closing(connect()) as conn:
+        rows = conn.execute("SELECT * FROM ties WHERE person = ? ORDER BY id", (person_key(name),))
+        return [{"a": r["a"], "b": r["b"], "at": r["at"]} for r in rows]
+
+
+def remove_last_tie(name: str) -> Optional[dict]:
+    """Delete and return someone's most recent tie, or None."""
+    with closing(connect()) as conn, conn:
+        row = conn.execute("SELECT * FROM ties WHERE person = ? ORDER BY id DESC LIMIT 1", (person_key(name),)).fetchone()
+        if row:
+            conn.execute("DELETE FROM ties WHERE id = ?", (row["id"],))
+    return {"a": row["a"], "b": row["b"], "at": row["at"]} if row else None
+
+
+def clear_ties(name: str) -> int:
+    with closing(connect()) as conn, conn:
+        return conn.execute("DELETE FROM ties WHERE person = ?", (person_key(name),)).rowcount
+
+
+def pick_pairs(name: str) -> tuple[dict, list[tuple[str, str]], list[tuple[str, str]]]:
+    """The app's comparisons as ranker input: features by photo, (winner, loser) picks, and ties.
+
+    Only comparisons whose photos the app measured count; Streamlit's name files on disk, which
+    the Streamlit tools measure themselves.
+    """
+    with closing(connect()) as conn:
+        rows = conn.execute("SELECT photo, features FROM photo_features WHERE person = ?", (person_key(name),))
+        features = {f"pick/{r['photo']}": json.loads(r["features"]) for r in rows}
+    measured = lambda a, b: f"pick/{a}" in features and f"pick/{b}" in features
+    pairs = [(f"pick/{c['winner']}", f"pick/{c['loser']}") for c in load(name) if measured(c["winner"], c["loser"])]
+    ties = [(f"pick/{t['a']}", f"pick/{t['b']}") for t in load_ties(name) if measured(t["a"], t["b"])]
+    return features, pairs, ties
 
 
 def verdict_pairs(name: str) -> tuple[dict, list[tuple[str, str]]]:

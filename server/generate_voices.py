@@ -6,6 +6,8 @@ Run from server/:  python generate_voices.py            (only lines that are new
 
 Needs ELEVENLABS_API_KEY in the environment or in server/.env.
 """
+from __future__ import annotations
+
 import hashlib
 import json
 import os

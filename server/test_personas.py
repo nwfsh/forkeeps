@@ -1,5 +1,6 @@
 """Run from server/:  python -m pytest test_personas.py"""
 import personas
+import shots
 import vision
 
 
@@ -7,6 +8,10 @@ def test_every_persona_has_every_line():
     for persona_id, persona in personas.PERSONAS.items():
         assert set(persona["lines"]) == set(personas.CLIPS), persona_id
         assert all(line.strip() for line in persona["lines"].values()), persona_id
+
+
+# Clips spoken for taste instructions rather than warnings (see shots.INSTRUCTIONS).
+TASTE_CLIPS = {clip for pair in shots.INSTRUCTIONS.values() for clip, _ in pair}
 
 
 def test_every_warning_has_a_clip_the_personas_can_say():
@@ -29,7 +34,11 @@ def test_every_warning_has_a_clip_the_personas_can_say():
         warnings = vision.framing_warnings(faces, people)
         assert warnings
         said.update(w["clip"] for w in warnings)
-    assert said == set(personas.CLIPS) - {"looks_good"}
+    assert said == set(personas.CLIPS) - {"looks_good"} - TASTE_CLIPS
+
+
+def test_every_taste_instruction_has_a_clip():
+    assert TASTE_CLIPS <= set(personas.CLIPS)
 
 
 def test_recorded_lists_only_clips_that_exist(tmp_path, monkeypatch):

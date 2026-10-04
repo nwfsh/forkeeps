@@ -1,3 +1,4 @@
+import math
 import time
 from typing import Literal, Optional
 
@@ -7,11 +8,13 @@ from pydantic import BaseModel
 
 import angles
 import choices_db
+import comparing
 import personas
 import ranker
 import recognize
 import retrain
 import shots
+import snapshots
 import vision
 
 # Camera frames are small and faces in them are big, so the detector can work at a small
@@ -44,7 +47,20 @@ def analyze(image: UploadFile = File(...), person: Optional[str] = None):
     add_names(rgb, result["faces"])
     result["shot"] = shots.judge(result, shots.load_model(person))
     result["ms"] = round((time.perf_counter() - start) * 1000)
-    return result
+    return finite(result)
+
+
+def finite(value):
+    """The result with every NaN or infinite number made None, which JSON can't carry. A
+    measurement over an empty patch (a face at the frame's edge, say) can come out NaN, and
+    one unknown number shouldn't fail the whole frame."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: finite(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [finite(v) for v in value]
+    return value
 
 
 def add_names(rgb, faces: list[dict]) -> None:
@@ -75,6 +91,52 @@ class Verdict(BaseModel):
     kind: Literal["photo", "angle"] = "photo"
 
 
+class PickedPhoto(BaseModel):
+    id: str
+    # What /analyze said about the photo.
+    analysis: dict
+
+
+class Pick(BaseModel):
+    person: str
+    winner: PickedPhoto
+    loser: PickedPhoto
+    # True for "It's a tie": the two are equally good, and winner and loser are just the pair.
+    tie: bool = False
+
+
+@app.post("/picks")
+def save_pick(body: Pick):
+    """One "which do you like more?" choice, or a tie, from onboarding. Only measurements are stored."""
+    try:
+        winner, loser = ranker.photo_features(body.winner.analysis), ranker.photo_features(body.loser.analysis)
+    except (KeyError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"analysis isn't a /analyze result: {e}")
+    if body.tie:
+        choices_db.save_measured_tie(body.person, body.winner.id, body.loser.id, winner, loser)
+    else:
+        choices_db.save_pick(body.person, body.winner.id, body.loser.id, winner, loser)
+    return {"saved": True}
+
+
+class CompareSession(BaseModel):
+    # {"id", "analysis"} for each snapshot being compared.
+    candidates: list[dict]
+    # This session's picks so far: {"winner", "loser"} or {"a", "b", "tie": true}.
+    picks: list[dict] = []
+    # Pairs passed over with "Can't decide".
+    skipped: list[list[str]] = []
+
+
+@app.post("/pairs/next")
+def next_pair(body: CompareSession):
+    """The next pair to compare and whether to stop, decided like the Streamlit compare tool."""
+    try:
+        return comparing.next_step(body.candidates, body.picks, body.skipped)
+    except (KeyError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"candidates need an id and a /analyze result: {e}")
+
+
 @app.post("/verdicts")
 def save_verdict(body: Verdict):
     """Keep or remove from the app's photo review or angle finder. Only features are stored."""
@@ -90,6 +152,21 @@ def save_verdict(body: Verdict):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"saved": True, "measured": features is not None}
+
+
+class SnapshotFrames(BaseModel):
+    # {"id", "analysis"} for each frame of the onboarding recording.
+    frames: list[dict]
+    count: int = snapshots.SNAPSHOTS
+
+
+@app.post("/snapshots")
+def pick_snapshots(body: SnapshotFrames):
+    """Pick about twenty varied, measurable frames from a recording for onboarding's swipes."""
+    try:
+        return snapshots.pick(body.frames, body.count)
+    except (KeyError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"frames need an id and a /analyze result: {e}")
 
 
 class AngleFrames(BaseModel):

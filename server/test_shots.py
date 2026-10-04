@@ -57,3 +57,48 @@ def test_no_model_for_unknown_people():
 def test_rules_need_a_decent_score_too():
     shot = shots.judge(result(eyes=0.75, sharpness=5.0, contact=0.3), None)  # blurry, looking away
     assert shot["score"] < shots.RULES_PERFECT_SCORE and shot["blockers"] == ["low_score"]
+
+
+def taste_model(**weights) -> dict:
+    """A saved model that only cares about the given features, each with mean 0 and spread 0.2."""
+    names = list(weights) + [f"{n}_curve" for n in ("chin_up", "left_side") if f"{n}_curve" in weights]
+    return {"weights": weights, "mean": {n: 0.0 for n in names} | {"smile": 0.3},
+            "std": {n: 0.2 for n in names}}
+
+
+def test_instruction_points_toward_what_the_model_prefers():
+    model = taste_model(chin_up=-1.0)  # prefers chin down
+    tip = shots.instruction({"chin_up": 0.2}, model)
+    assert tip["clip"] == "chin_down" and tip["gain"] > 0
+
+
+def test_instruction_stops_at_values_that_can_happen():
+    # Prefers less smile, but a smile of 0 can't go lower: nothing to say.
+    assert shots.instruction({"smile": 0.0}, taste_model(smile=-2.0)) is None
+    assert shots.instruction({"smile": 0.6}, taste_model(smile=-2.0))["clip"] == "relax_smile"
+
+
+def test_instruction_finds_a_best_angle_in_between():
+    # Linear and squared weights that peak at chin_up = 0.1 (a little up).
+    model = taste_model(chin_up=0.4, chin_up_curve=-2.0)
+    assert shots.instruction({"chin_up": -0.3}, model)["clip"] == "chin_up"
+    assert shots.instruction({"chin_up": 0.45}, model)["clip"] == "chin_down"
+
+
+def test_no_instruction_for_small_changes_or_unmeasured_features():
+    model = taste_model(chin_up=-1.0)
+    assert shots.instruction({"chin_up": -0.38}, model) is None
+    assert shots.instruction({"chin_up": None}, model) is None
+
+
+def test_the_biggest_gain_wins():
+    model = taste_model(chin_up=-0.5, eye_contact=3.0)
+    assert shots.instruction({"chin_up": 0.2, "eye_contact": 0.0}, model)["clip"] == "look_at_lens"
+
+
+def test_analyze_never_returns_numbers_json_cant_carry():
+    import math
+    import main
+    result = main.finite({"a": float("nan"), "b": [1.0, float("inf")], "c": {"d": 2.5, "e": "x"}})
+    assert result == {"a": None, "b": [1.0, None], "c": {"d": 2.5, "e": "x"}}
+    assert not any(isinstance(v, float) and not math.isfinite(v) for v in result["b"] if v is not None)

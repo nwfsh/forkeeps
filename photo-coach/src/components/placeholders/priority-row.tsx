@@ -16,11 +16,12 @@ export function PriorityRow({ priority, largestShare }: { priority: Priority; la
     <View
       style={styles.row}
       accessible
-      accessibilityLabel={`${priority.label}, ${direction}, ${Math.round(priority.share * 100)} percent`}>
+      accessibilityLabel={`${priority.prefers ?? `${priority.label}, ${direction}`}, ${Math.round(priority.share * 100)} percent`}>
       <View style={styles.labels}>
-        <ThemedText style={styles.label}>{priority.label}</ThemedText>
+        <ThemedText style={styles.label}>{priority.prefers ?? priority.label}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          {direction} · {Math.round(priority.share * 100)}%
+          {priority.prefers ? '' : `${direction} · `}
+          {Math.round(priority.share * 100)}%
         </ThemedText>
       </View>
       <View style={[styles.track, { backgroundColor: theme.backgroundElement }]}>

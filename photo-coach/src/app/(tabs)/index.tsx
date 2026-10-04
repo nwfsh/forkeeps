@@ -11,7 +11,7 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
 import { useVoiceCoach } from '@/hooks/use-voice-coach';
 import { BURST_SIZE, rankBurst } from '@/lib/burst';
-import { SERVER_URL, type Analysis } from '@/lib/server';
+import { redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
 import { GOOD_CLIP } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
@@ -50,8 +50,17 @@ export default function CameraScreen() {
   const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(cameraRef, ready && isFocused, (frame) =>
     onFrameRef.current(frame)
   );
-  // The line for the tip on screen, or praise when there's nothing to fix.
-  const clip = !isFocused || error || !analysis ? null : (analysis.warnings[0]?.clip ?? GOOD_CLIP);
+  // The line for the tip on screen: first why the photo can't be judged at all (nobody there, face
+  // cut off or covered), then a framing or lighting warning, then the change the profile's taste
+  // model wants, then praise when there's nothing left to fix.
+  const instruction = analysis?.shot?.instruction ?? null;
+  const redFlag = analysis?.red_flags?.[0];
+  // Red flags are spoken by their code; ones a voice has no line for stay quiet (useVoiceCoach
+  // skips clips it doesn't have), rather than saying "looks good".
+  const clip =
+    !isFocused || error || !analysis
+      ? null
+      : (redFlag ?? analysis.warnings[0]?.clip ?? instruction?.clip ?? GOOD_CLIP);
   const voice = useVoiceCoach(clip);
 
   // iOS reports lens names like "Back Ultra Wide Camera"; only the back camera has one.
@@ -148,7 +157,11 @@ export default function CameraScreen() {
   }
 
   // The error can come from taking the snapshot as well as from the network, so show it.
-  const tip = error ? `Can't reach ${SERVER_URL} (${error})` : analysis?.warnings[0]?.message;
+  const tip = error
+    ? `Can't reach ${SERVER_URL} (${error})`
+    : redFlag
+      ? redFlagMessage(redFlag)
+      : (analysis?.warnings[0]?.message ?? instruction?.message);
 
   return (
     <View
@@ -198,6 +211,9 @@ export default function CameraScreen() {
             <Text style={styles.stats}>
               {analysis.faces.length} face{analysis.faces.length === 1 ? '' : 's'} · {fps.toFixed(1)} fps ·{' '}
               {analysis.ms} ms
+              {analysis.shot?.scored_by === 'model'
+                ? ` · style match ${Math.round(analysis.shot.score * 100)}%`
+                : ''}
             </Text>
           )}
           {notice ? (

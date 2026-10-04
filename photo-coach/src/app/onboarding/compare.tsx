@@ -1,62 +1,402 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useOnboarding } from '@/components/onboarding-provider';
-import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/placeholders/button';
-import { PhotoCard } from '@/components/placeholders/photo-card';
-import { ProgressBar } from '@/components/placeholders/progress-bar';
-import { Screen } from '@/components/placeholders/screen';
-import { Spacing } from '@/constants/theme';
-import { MOCK_PAIRS } from '@/lib/onboarding';
+import { useOnboarding, type Snapshot } from '@/components/onboarding-provider';
+import {
+  GradientBackground,
+  INK,
+  MUTED,
+  PillButton,
+  StepDots,
+} from '@/components/onboarding-style';
+import { nextPair, retrainModel, sendPick, type NextPair, type SessionPick } from '@/lib/server';
+
+// How long the chosen photo shows its check before the next pair.
+const CHOSEN_MS = 450;
 
 /**
- * "Choose between pics". With mock data, one round is every mock pair; the real version
- * keeps going until the server's ranker says it has learned enough (15–40 picks).
+ * "Which do you prefer?" on the recording's snapshots, run like the Streamlit compare tool
+ * (server/compare.py): the server picks each pair, usually the one the model is least sure
+ * about, and says when to stop (15 to 40 picks, once the pattern is clear). Tap the one you like
+ * more, "It's a tie" when they're equally good (which teaches that what differs doesn't matter),
+ * or "Can't decide" to skip. Then the profile is trained from it all (server/retrain.py).
  */
 export default function CompareScreen() {
-  const { pick } = useOnboarding();
-  // Pairs shown so far, picked or skipped. Coming back from results starts a new round.
-  const [shown, setShown] = useState(0);
-  const round = MOCK_PAIRS.length;
-  const done = shown % round;
-  const [a, b] = MOCK_PAIRS[done];
+  const { snapshots, setResults } = useOnboarding();
+  // Ids from different recordings must not collide on the server.
+  const [session] = useState(() => String(Date.now()));
+  const byId = useMemo(() => new Map(snapshots.map((s) => [s.id, s])), [snapshots]);
+  const [picks, setPicks] = useState<SessionPick[]>([]);
+  const [skipped, setSkipped] = useState<[string, string][]>([]);
+  const [step, setStep] = useState<NextPair | null>(null);
+  // True while a pair is being fetched or a pick saved; the first pair is fetched straight away.
+  const [busy, setBusy] = useState(true);
+  const [training, setTraining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // The photo just tapped, shown with a check until its pick is sent.
+  const [chosen, setChosen] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
-  function next() {
-    setShown((n) => n + 1);
-    if (done + 1 === round) router.push('/onboarding/results');
+  const train = useCallback(async () => {
+    setTraining(true);
+    setError(null);
+    try {
+      setResults(await retrainModel());
+      router.replace('/onboarding/results');
+    } catch (e) {
+      setError(`Couldn't build your profile. ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setTraining(false);
+    }
+  }, [setResults]);
+
+  // Ask the server for the next pair after every pick, tie or skip.
+  useEffect(() => {
+    let cancelled = false;
+    nextPair(snapshots, picks, skipped)
+      .then((next) => {
+        if (cancelled) return;
+        setStep(next);
+        setError(null);
+        if ((next.stop || !next.pair) && picks.length > 0) train();
+      })
+      .catch(
+        (e) =>
+          !cancelled &&
+          setError(`Couldn't reach the server. ${e instanceof Error ? e.message : String(e)}`),
+      )
+      .finally(() => !cancelled && setBusy(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [snapshots, picks, skipped, train]);
+
+  const pair = step?.pair && !step.stop ? step.pair.map((id) => byId.get(id)) : null;
+  const [a, b] = pair ?? [];
+
+  /** Shows the tapped photo as chosen for a moment, then sends the pick. */
+  function tap(winner: Snapshot, loser: Snapshot) {
+    setBusy(true);
+    setChosen(winner.id);
+    setTimeout(() => choose(winner, loser), CHOSEN_MS);
   }
 
-  function choose(winner: string, loser: string) {
-    pick(winner, loser);
-    next();
+  async function choose(winner: Snapshot, loser: Snapshot, tie = false) {
+    setBusy(true);
+    try {
+      await sendPick(
+        { id: `onboarding-${session}-${winner.id}`, analysis: winner.analysis },
+        { id: `onboarding-${session}-${loser.id}`, analysis: loser.analysis },
+        tie,
+      );
+      setChosen(null);
+      setPicks((list) => [
+        ...list,
+        tie ? { a: winner.id, b: loser.id, tie: true } : { winner: winner.id, loser: loser.id },
+      ]);
+    } catch (e) {
+      setError(`Couldn't save that. ${e instanceof Error ? e.message : String(e)}`);
+      setChosen(null);
+      setBusy(false);
+    }
   }
+
+  const count = picks.length;
+  const min = step?.min ?? 15;
+  const max = step?.max ?? 40;
+  // Counts toward the minimum first, then toward the most it will ask.
+  const goal = count < min ? min : max;
 
   return (
-    <Screen
-      back
-      topRight={<Button variant="text" label="Skip" onPress={() => router.push('/onboarding/camera-access')} />}
-      footer={<Button variant="secondary" label="Can't decide" onPress={next} />}>
-      <ProgressBar progress={done / round} label={`${done} of ${round}`} />
-      <View style={styles.heading}>
-        <ThemedText type="subtitle">Which do you like more?</ThemedText>
-        <ThemedText themeColor="textSecondary">Go with your gut. There are no wrong answers.</ThemedText>
+    <View style={styles.screen}>
+      <GradientBackground />
+      <View
+        style={[
+          styles.content,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 },
+        ]}>
+        <StepDots step={3} steps={3} />
+        <Text style={styles.title}>Which do you prefer?</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.lead}>
+            {training ? 'Building your profile…' : 'Tap the one you like more.'}
+          </Text>
+
+          {a && b && !training && (
+            <View style={styles.pair}>
+              {(
+                [
+                  [a, b, 'A'],
+                  [b, a, 'B'],
+                ] as const
+              ).map(([shown, other, label]) => {
+                const isChosen = shown.id === chosen;
+                const faded = chosen !== null && !isChosen;
+                return (
+                  <Pressable
+                    key={shown.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pick frame ${label}`}
+                    disabled={busy}
+                    onPress={() => tap(shown, other)}
+                    style={({ pressed }) => [
+                      styles.photoCard,
+                      isChosen && styles.photoChosen,
+                      faded && styles.photoFaded,
+                      pressed && !chosen && styles.pressed,
+                    ]}>
+                    <Image source={{ uri: shown.uri }} style={styles.photo} contentFit="cover" />
+                    {isChosen && (
+                      <View style={styles.check}>
+                        <SymbolView
+                          name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                          size={16}
+                          weight="bold"
+                          tintColor="#FFFFFF"
+                        />
+                      </View>
+                    )}
+                    <View style={[styles.label, isChosen ? styles.labelDark : styles.labelLight]}>
+                      <Text style={[styles.labelText, isChosen && styles.labelTextDark]}>
+                        Frame {label}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {(training || (busy && !pair)) && (
+            <View style={styles.center}>
+              <ActivityIndicator color={INK} />
+            </View>
+          )}
+
+          {!training && !busy && step && !step.pair && count === 0 && (
+            <View style={styles.center}>
+              <Text style={styles.lead}>
+                Not enough snapshots to compare. Record again with your face in view.
+              </Text>
+              <PillButton
+                label="Record again"
+                onPress={() => router.replace('/onboarding/record')}
+              />
+            </View>
+          )}
+
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.error}>{error}</Text>
+              {count > 0 && !training && (
+                <PillButton label="Try building my profile again" onPress={train} />
+              )}
+            </View>
+          )}
+
+          {a && b && !training && (
+            <>
+              <View style={styles.progress}>
+                <Text style={styles.count}>
+                  {count} of {goal}
+                </Text>
+                <View style={styles.track}>
+                  <View style={[styles.bar, { width: `${Math.min(1, count / goal) * 100}%` }]} />
+                </View>
+              </View>
+              <View style={styles.actions}>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy}
+                  onPress={() => choose(a, b, true)}
+                  style={({ pressed }) => [styles.tie, pressed && styles.pressed]}>
+                  <Text style={styles.tieText}>Both the same: it’s a tie</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy}
+                  onPress={() => {
+                    setBusy(true);
+                    setSkipped((list) => [...list, [a.id, b.id]]);
+                  }}
+                  hitSlop={8}>
+                  <Text style={styles.skip}>Can’t decide? Skip this pair</Text>
+                </Pressable>
+                {count >= min && (
+                  <Pressable accessibilityRole="button" disabled={busy} onPress={train} hitSlop={8}>
+                    <Text style={styles.now}>Show my results now</Text>
+                  </Pressable>
+                )}
+              </View>
+            </>
+          )}
+        </View>
       </View>
-      <View style={styles.pair}>
-        <PhotoCard photo={a} onPress={() => choose(a.id, b.id)} />
-        <PhotoCard photo={b} onPress={() => choose(b.id, a.id)} />
-      </View>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    gap: Spacing.two,
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  title: {
+    color: INK,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '700',
+    letterSpacing: -0.6,
+  },
+  // Fills the rest of the screen; the photos take whatever height is left in it.
+  card: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 16,
+    paddingTop: 20,
+    gap: 16,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  lead: {
+    paddingHorizontal: 4,
+    color: MUTED,
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  // The two photos side by side, as large as the space allows.
   pair: {
+    flex: 1,
     flexDirection: 'row',
-    gap: Spacing.three,
+    alignItems: 'center',
+    gap: 10,
+  },
+  photoCard: {
+    flex: 1,
+    aspectRatio: 0.62,
+    maxHeight: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#EEE9E6',
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  photoChosen: {
+    borderColor: INK,
+  },
+  photoFaded: {
+    opacity: 0.4,
+  },
+  photo: {
+    flex: 1,
+  },
+  check: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  labelDark: {
+    backgroundColor: INK,
+  },
+  labelLight: {
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  labelText: {
+    color: INK,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  labelTextDark: {
+    color: '#FFFFFF',
+  },
+  center: {
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 24,
+  },
+  errorBox: {
+    gap: 12,
+  },
+  error: {
+    color: '#B42318',
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  progress: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  count: {
+    color: INK,
+    fontSize: 16,
+  },
+  track: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EEE9E6',
+    overflow: 'hidden',
+  },
+  bar: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: INK,
+  },
+  actions: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  tie: {
+    alignSelf: 'stretch',
+    height: 48,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.6,
+  },
+  tieText: {
+    color: INK,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  skip: {
+    color: MUTED,
+    fontSize: 16,
+  },
+  now: {
+    color: INK,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

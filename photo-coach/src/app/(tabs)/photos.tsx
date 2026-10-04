@@ -50,13 +50,23 @@ export default function PhotosScreen() {
           )}
         </View>
         <RetrainBanner />
-        <Pressable accessibilityRole="button" onPress={restart} style={styles.replay} hitSlop={8}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Replay intro
-          </ThemedText>
-        </Pressable>
+        <View style={styles.replayRow}>
+          <Pressable accessibilityRole="button" onPress={() => restart()} hitSlop={8}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Replay intro
+            </ThemedText>
+          </Pressable>
+          {/* Every onboarding page with a Skip button, for checking the design quickly. */}
+          <Pressable accessibilityRole="button" onPress={() => restart(true)} hitSlop={8}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Preview screens
+            </ThemedText>
+          </Pressable>
+        </View>
         {photos.length === 0 ? (
-          <ThemedText style={styles.empty}>Photos you take on the Camera tab show up here.</ThemedText>
+          <ThemedText style={styles.empty}>
+            Photos you take on the Camera tab show up here.
+          </ThemedText>
         ) : (
           <FlatList
             data={photos}
@@ -66,7 +76,11 @@ export default function PhotosScreen() {
             contentContainerStyle={{ gap: GAP, paddingBottom: BottomTabInset + Spacing.three }}
             renderItem={({ item, index }) => (
               <Pressable onPress={() => setOpenIndex(index)}>
-                <Image source={{ uri: item.uri }} style={{ width: size, height: size }} contentFit="cover" />
+                <Image
+                  source={{ uri: item.uri }}
+                  style={{ width: size, height: size }}
+                  contentFit="cover"
+                />
               </Pressable>
             )}
           />
@@ -136,10 +150,14 @@ function Viewer({
             await sendVerdict(photo.id, 'remove', photo.analysis);
             deleteNow(photo);
           } catch {
-            Alert.alert("Couldn't reach the server", 'Delete anyway? This photo won\'t count toward your taste.', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete anyway', style: 'destructive', onPress: () => deleteNow(photo) },
-            ]);
+            Alert.alert(
+              "Couldn't reach the server",
+              "Delete anyway? This photo won't count toward your taste.",
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete anyway', style: 'destructive', onPress: () => deleteNow(photo) },
+              ],
+            );
           }
         },
       },
@@ -158,7 +176,11 @@ function Viewer({
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
           onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
           renderItem={({ item }) => (
-            <Image source={{ uri: item.uri }} style={{ width, height: '100%' }} contentFit="contain" />
+            <Image
+              source={{ uri: item.uri }}
+              style={{ width, height: '100%' }}
+              contentFit="contain"
+            />
           )}
         />
         <SafeAreaView style={styles.viewerHud} pointerEvents="box-none">
@@ -195,8 +217,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },
-  replay: {
-    alignSelf: 'flex-start',
+  replayRow: {
+    flexDirection: 'row',
+    gap: Spacing.four,
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,
   },

@@ -14,6 +14,7 @@ import pandas as pd
 import streamlit as st
 
 import choices_db
+import comparing
 import vision
 from ranker import CLEAR, LIKELY, MAX_CHOICES, MIN_CHOICES, RECENT_GUESSES, Ranker, photo_features
 
@@ -66,6 +67,13 @@ def pick(name: str, winner: str, loser: str, winner_probability) -> None:
     st.session_state.pair = None
 
 
+def tie(name: str, a: str, b: str) -> None:
+    """Record that two photos are equally good: the ranker learns that what differs between them
+    doesn't matter, rather than learning nothing as with "Can't decide"."""
+    choices_db.add_tie(name, a, b)
+    st.session_state.pair = None
+
+
 def skip(a: str, b: str) -> None:
     st.session_state.skipped.add(frozenset((a, b)))
     st.session_state.pair = None
@@ -78,16 +86,24 @@ def set_view(name: str, view: str) -> None:
 
 def start_over(name: str) -> None:
     choices_db.clear(name)
+    choices_db.clear_ties(name)
     st.session_state.view.pop(name, None)
     st.session_state.skipped = set()
     st.session_state.pair = None
 
 
 def undo(name: str) -> None:
-    last = choices_db.remove_last(name)
-    if last:
+    """Take back the latest pick or tie, whichever came last."""
+    picks, ties = choices_db.load(name), choices_db.load_ties(name)
+    if ties and (not picks or ties[-1]["at"] >= picks[-1]["at"]):
+        last = choices_db.remove_last_tie(name)
+        st.session_state.pair = (last["a"], last["b"])
+    else:
+        last = choices_db.remove_last(name)
+        if not last:
+            return
         st.session_state.pair = (last["winner"], last["loser"])
-        st.session_state.view.pop(name, None)
+    st.session_state.view.pop(name, None)
 
 
 st.set_page_config(page_title="Photo duel", layout="wide")
@@ -141,16 +157,19 @@ if len(features) < 2:
 saved_choices = choices_db.load(name)
 choices = [c for c in saved_choices if c["winner"] in features and c["loser"] in features]
 pairs = [(c["winner"], c["loser"]) for c in choices]
+tied = [(t["a"], t["b"]) for t in choices_db.load_ties(name) if t["a"] in features and t["b"] in features]
 ranker = Ranker(features)
-ranker.fit(pairs)
-stop = ranker.stop_reason(choices)
+ranker.fit(pairs, tied)
+# Ties count as picks toward the stopping rule, the same as in the app (comparing.py).
+count_all = len(choices) + len(tied)
+stop = comparing.stop_reason(ranker, pairs, [c["model_agreed"] for c in choices], count_all)
 view = st.session_state.view.get(name)
 showing_results = view == "results" or (stop is not None and view != "comparing")
 
-st.sidebar.metric("Picks made", len(choices))
+st.sidebar.metric("Picks made", count_all)
 st.sidebar.button("Undo last pick", on_click=undo, args=(name,), disabled=not choices)
 with st.sidebar.popover("Start over", disabled=not choices):
-    st.write(f"This deletes all {len(choices)} of {name}'s picks.")
+    st.write(f"This deletes all {count_all} of {name}'s picks and ties.")
     st.button("Delete my picks", type="primary", on_click=start_over, args=(name,))
 st.sidebar.caption(f"Saved to {choices_db.DB_PATH.relative_to(REPO).as_posix()}")
 if len(saved_choices) > len(choices):
@@ -181,7 +200,7 @@ def preference_for(feature: str) -> str:
 
 
 def show_comparison() -> None:
-    count = len(choices)
+    count = count_all
     if stop is not None:
         status = "Extra picks: your results update as you go"
     elif count < MIN_CHOICES:
@@ -192,7 +211,7 @@ def show_comparison() -> None:
 
     pair = st.session_state.pair
     if pair is None or not all(p in features for p in pair):
-        seen = {frozenset(p) for p in pairs} | st.session_state.skipped
+        seen = {frozenset(p) for p in pairs + tied} | st.session_state.skipped
         pair = st.session_state.pair = ranker.next_pair(seen, st.session_state.rng)
     if pair is None:
         st.success("You've compared every pair of photos.")
@@ -209,14 +228,16 @@ def show_comparison() -> None:
                       on_click=pick, args=(name, shown, other,
                                            None if probability is None
                                            else probability if shown == a else 1 - probability))
-    left, right = st.columns(2)
-    left.button("Can't decide", on_click=skip, args=(a, b), width="stretch")
+    left, middle, right = st.columns(3)
+    left.button("It's a tie", on_click=tie, args=(name, a, b), width="stretch",
+                help="Both equally good: teaches that what differs between them doesn't matter to you.")
+    middle.button("Can't decide", on_click=skip, args=(a, b), width="stretch")
     if count >= MIN_CHOICES:
         right.button("Show my results now", on_click=set_view, args=(name, "results"), width="stretch")
 
 
 def show_results() -> None:
-    count = len(choices)
+    count = count_all
     st.header("What you look for in a photo")
     guesses = [c["model_agreed"] for c in choices[-RECENT_GUESSES:] if c["model_agreed"] is not None]
     why = {

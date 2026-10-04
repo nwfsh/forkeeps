@@ -67,6 +67,11 @@ SIDE_ON = 0.35
 ANGLED = 0.5
 # A frame edge within this fraction of the frame height of a joint "cuts at" that joint.
 JOINT_MARGIN = 0.04
+# How sure the pose model must be that it sees a joint before framing rules use it.
+JOINT_SEEN = 0.5
+# Share of the face hands cover that counts as covering it. Hands over our forehead and an eye
+# covered 33%; a hand at the temple 7%, hands by the ears 2-3%, a peace sign beside the face 0%.
+HAND_OVER_FACE_COVERS = 0.25
 # Space in front of a turned head, as a fraction of frame width, below which it feels cramped.
 LOOKING_ROOM = 0.3
 # A face shorter than this fraction of the frame has too few pixels to read expressions from.
@@ -385,12 +390,13 @@ def find_people(rgb: np.ndarray) -> list[dict]:
     people, boxes = [], []
     for landmarks, world in zip(result.pose_landmarks, result.pose_world_landmarks):
         points = [(p.x, p.y) for p in landmarks]
+        seen = [p.visibility for p in landmarks]
         box = (min(x for x, _ in points), min(y for _, y in points),
                max(x for x, _ in points), max(y for _, y in points))
         # At a low cutoff the model can return the same person twice, slightly offset.
         if all(overlap(box, other) < 0.3 for other in boxes):
             boxes.append(box)
-            person = describe_body(points, width, height)
+            person = describe_body(points, width, height, seen)
             person.update(posture(np.array([[p.x, p.y, p.z] for p in world])))
             people.append(person)
     return people
@@ -435,11 +441,13 @@ def posture(world: np.ndarray) -> dict:
     }
 
 
-def describe_body(points: list[tuple], width: int, height: int) -> dict:
+def describe_body(points: list[tuple], width: int, height: int, seen: Optional[list] = None) -> dict:
     """View, body turn and framing from 33 pose points given as fractions of the frame.
 
-    Points outside the frame are the model's guesses at where cut-off body parts are.
+    Points outside the frame are the model's guesses at where cut-off body parts are. `seen` is
+    the model's confidence (0-1) that it can actually see each point; without it, all count.
     """
+    seen = seen or [1.0] * len(points)
     def mid(a: int, b: int) -> tuple:
         return ((points[a][0] + points[b][0]) / 2, (points[a][1] + points[b][1]) / 2)
 
@@ -471,8 +479,8 @@ def describe_body(points: list[tuple], width: int, height: int) -> dict:
         "body_turn": "side_on" if width_ratio < SIDE_ON else "angled" if width_ratio < ANGLED else "square",
         "shoulder_width_ratio": round(width_ratio, 2),
         "shoulder_tilt": round(math.degrees(math.atan2(shoulder_dy, abs(shoulder_dx) or 1e-6)), 1),
-        "crop": crop_name(points),
-        "cut_at_joint": joint_at_edge(points),
+        "crop": crop_name(points, seen),
+        "cut_at_joint": joint_at_edge(points, seen),
         "body_size": round(min(1, max(y for _, y in points)) - max(0, min(y for _, y in points)), 3),
         "points": [[round(x, 4), round(y, 4)] for x, y in points],
     }
@@ -552,27 +560,30 @@ def head_box(points: list) -> tuple:
     return (min(xs) - dx, min(ys) - dy, max(xs) + dx, max(ys) + dy)
 
 
-def crop_name(points: list[tuple]) -> str:
-    """How much of the body the frame shows, by the lowest body part inside it."""
+def crop_name(points: list[tuple], seen: Optional[list] = None) -> str:
+    """How much of the body the frame shows, by the lowest body part inside it and actually seen."""
+    seen = seen or [1.0] * len(points)
     for name, (a, b) in (("full_body", (LEFT_ANKLE, RIGHT_ANKLE)),
                          ("knees_up", (LEFT_KNEE, RIGHT_KNEE)),
                          ("waist_up", (LEFT_HIP, RIGHT_HIP)),
                          ("shoulders_up", (LEFT_SHOULDER, RIGHT_SHOULDER))):
-        if (points[a][1] + points[b][1]) / 2 <= 1:
+        if (points[a][1] + points[b][1]) / 2 <= 1 and min(seen[a], seen[b]) >= JOINT_SEEN:
             return name
     return "head_only"
 
 
-def joint_at_edge(points: list[tuple]) -> Optional[str]:
+def joint_at_edge(points: list[tuple], seen: Optional[list] = None) -> Optional[str]:
     """The joint the bottom of the frame cuts across, if any. Cropping at a joint looks awkward.
 
-    Only joints inside the frame count: the model's guesses for joints past the edge run
-    low, so a frame cutting mid-thigh would otherwise read as cutting at the knees.
+    Only joints inside the frame and actually seen count: the model guesses where joints it
+    can't see are, and in a close-up those guesses land on the frame's edge (in our test photos,
+    "ankles" it was 6-47% sure of), while real cuts at the knees it saw 51-82% sure. The hips
+    aren't checked: a half-body selfie ends around there, and being told so every frame was noise.
     """
+    seen = seen or [1.0] * len(points)
     for name, (a, b) in (("ankles", (LEFT_ANKLE, RIGHT_ANKLE)),
-                         ("knees", (LEFT_KNEE, RIGHT_KNEE)),
-                         ("hips", (LEFT_HIP, RIGHT_HIP))):
-        if 1 - JOINT_MARGIN < (points[a][1] + points[b][1]) / 2 <= 1:
+                         ("knees", (LEFT_KNEE, RIGHT_KNEE))):
+        if 1 - JOINT_MARGIN < (points[a][1] + points[b][1]) / 2 <= 1 and min(seen[a], seen[b]) >= JOINT_SEEN:
             return name
     return None
 
@@ -622,6 +633,10 @@ def analyze(rgb: np.ndarray) -> dict:
     if faces:
         main = max(faces, key=lambda f: f["bbox"]["h"])
         main["hand_over_face"] = hand_over_face(rgb, main["landmarks"], people[0]["points"] if people else None)
+        # A hand over a big share of the face, forehead and eyes included, also covers it; the
+        # middle-of-the-face check above misses hands over the forehead and eyes.
+        if not main.get("covered_by") and main["hand_over_face"] >= HAND_OVER_FACE_COVERS:
+            main["covered_by"] = "hand"
 
     return {
         "width": width,
@@ -798,9 +813,11 @@ def skin_detail(rgb: np.ndarray, pts: np.ndarray, face_length: float, facing: bo
     fold = None
     if facing and chin_x1 - chin_x0 > 4 and band_bottom - chin_y > 2:
         edges = np.abs(cv2.Sobel(lightness, cv2.CV_32F, 0, 1, ksize=3))
-        under_chin = edges[chin_y:band_bottom, chin_x0:chin_x1]
+        under_chin = edges[max(0, chin_y):band_bottom, max(0, chin_x0):chin_x1]
         cheeks = edges[face & ~shine]
-        fold = round(float(np.mean(under_chin) / (np.mean(cheeks) or 1e-6)), 3)
+        # With the chin at the frame's edge there's nothing below it to look at.
+        if under_chin.size and cheeks.size:
+            fold = round(float(np.mean(under_chin) / (np.mean(cheeks) or 1e-6)), 3)
     return {"shine": round(float(shine.sum() / face.sum()), 4), "under_chin_fold": fold}
 
 

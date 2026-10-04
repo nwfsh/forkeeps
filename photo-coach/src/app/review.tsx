@@ -1,3 +1,4 @@
+import * as MediaLibrary from 'expo-media-library';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -14,7 +15,8 @@ import { sendVerdict, type Verdict } from '@/lib/server';
 /**
  * Hinge-style review of the photos you've taken: swipe right or tap ♥ to keep one, swipe left
  * or tap ✕ to remove it. Each verdict goes to the server's database (the photo's measurements,
- * not the image) so the ranker learns your taste; removed photos are then deleted here.
+ * not the image) so the ranker learns your taste; kept photos are also saved to the phone's
+ * Photos library, and removed ones are deleted here.
  */
 export default function ReviewScreen() {
   const { photos, keep, remove } = usePhotos();
@@ -25,6 +27,9 @@ export default function ReviewScreen() {
   // Bumped to put a card back after a failed save, so it remounts in the middle.
   const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [permission, requestPermission] = MediaLibrary.usePermissions({ writeOnly: true });
+  // Why the last kept photo didn't reach the Photos library, if it didn't.
+  const [libraryNote, setLibraryNote] = useState<string | null>(null);
   const card = useRef<SwipeCardHandle>(null);
   const [current, next] = queue;
 
@@ -37,13 +42,30 @@ export default function ReviewScreen() {
       await sendVerdict(current.id, verdict, current.analysis);
       setError(null);
       setReviewed((n) => n + 1);
-      if (verdict === 'keep') keep(current.id);
-      else remove(current.id);
+      if (verdict === 'keep') {
+        keep(current.id);
+        saveToLibrary(current.uri);
+      } else remove(current.id);
     } catch (e) {
       setError(`Couldn't save that, so nothing changed. ${e instanceof Error ? e.message : String(e)}`);
       setAttempt((n) => n + 1);
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** Saves a kept photo to Photos. Without access it stays kept here and still taught the coach. */
+  async function saveToLibrary(uri: string) {
+    try {
+      const granted = permission?.granted || (await requestPermission()).granted;
+      if (!granted) {
+        setLibraryNote('Kept here, but not saved to Photos: allow Photos access in Settings.');
+        return;
+      }
+      await MediaLibrary.Asset.create(uri);
+      setLibraryNote(null);
+    } catch (e) {
+      setLibraryNote(`Kept here, but saving to Photos failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -58,7 +80,7 @@ export default function ReviewScreen() {
         </View>
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
           {current
-            ? `Swipe right to keep, left to remove · ${queue.length} left`
+            ? `Swipe right to keep (saves to Photos), left to remove · ${queue.length} left`
             : reviewed
               ? `All done: you reviewed ${reviewed} photo${reviewed === 1 ? '' : 's'}.`
               : 'Nothing to review. New photos you take show up here.'}
@@ -73,6 +95,11 @@ export default function ReviewScreen() {
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
+        {libraryNote && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+            {libraryNote}
+          </ThemedText>
+        )}
         {current && (
           <View style={styles.buttons}>
             <RoundButton label="✕" color="#F87171" disabled={saving} onPress={() => card.current?.swipe('remove')}
@@ -130,6 +157,11 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#F87171',
+    textAlign: 'center',
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  note: {
     textAlign: 'center',
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.two,

@@ -1,66 +1,233 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ThemedText } from '@/components/themed-text';
-import { Badge } from '@/components/placeholders/badge';
-import { Button } from '@/components/placeholders/button';
-import { PriorityRow } from '@/components/placeholders/priority-row';
-import { Screen } from '@/components/placeholders/screen';
-import { Spacing } from '@/constants/theme';
-import { MOCK_RESULTS, type Confidence } from '@/lib/onboarding';
+import { useOnboarding } from '@/components/onboarding-provider';
+import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
+import { confidenceLevel } from '@/lib/onboarding';
+import type { RetrainResult } from '@/lib/server';
 
-// How many priorities to show; the rest are noise this early.
-const SHOWN = 3;
+type Weights = Record<string, number>;
 
-const CONFIDENCE_TEXT: Record<Confidence, { badge: string; body: string }> = {
-  clear: { badge: 'Clear pattern', body: 'Your picks point clearly to what you like.' },
-  likely: { badge: 'Likely pattern', body: 'A few more picks would firm this up.' },
-  unclear: {
-    badge: 'No clear pattern yet',
-    body: 'Your picks may depend on things we can’t measure yet, like lighting or outfit.',
+/**
+ * What the profile learned, grouped the way people think about a photo. Each group adds up its
+ * features' shares (the angle's sweet-spot curve counts with the angle) and says which way they
+ * lean, from the signs of the weights.
+ */
+const GROUPS: {
+  title: string;
+  icon: SymbolViewProps['name'];
+  features: string[];
+  lean: (w: Weights) => string | null;
+}[] = [
+  {
+    title: 'Chin angle',
+    icon: { ios: 'face.dashed', android: 'face', web: 'face' },
+    features: ['chin_up', 'chin_up_curve'],
+    lean: (w) => (w.chin_up === undefined ? null : w.chin_up < 0 ? 'Chin down' : 'Chin up'),
   },
-};
+  {
+    title: 'Face turn',
+    icon: { ios: 'arrow.left.and.right', android: 'swap_horiz', web: 'swap_horiz' },
+    features: ['left_side', 'left_side_curve'],
+    lean: (w) =>
+      w.left_side === undefined
+        ? null
+        : w.left_side > 0
+          ? 'Your left side toward the camera'
+          : 'Your right side toward the camera',
+  },
+  {
+    title: 'Smile',
+    icon: { ios: 'face.smiling', android: 'mood', web: 'mood' },
+    features: ['smile', 'teeth_shown'],
+    lean: (w) => {
+      const parts = [
+        w.smile === undefined ? null : w.smile > 0 ? 'A bigger smile' : 'A softer smile',
+        w.teeth_shown === undefined ? null : w.teeth_shown > 0 ? 'teeth showing' : 'lips closed',
+      ].filter(Boolean);
+      return parts.length ? parts.join(', ') : null;
+    },
+  },
+  {
+    title: 'Eyes',
+    icon: { ios: 'eye', android: 'visibility', web: 'visibility' },
+    features: ['eye_contact'],
+    lean: (w) =>
+      w.eye_contact === undefined
+        ? null
+        : w.eye_contact > 0
+          ? 'Looking into the lens'
+          : 'Looking just past the camera',
+  },
+];
 
+function groupsFor(results: RetrainResult) {
+  const weights: Weights = Object.fromEntries(results.priorities.map((p) => [p.feature, p.weight]));
+  const shares = Object.fromEntries(results.priorities.map((p) => [p.feature, p.share]));
+  return GROUPS.map((group) => ({
+    ...group,
+    share: group.features.reduce((sum, f) => sum + (shares[f] ?? 0), 0),
+    detail: group.lean(weights),
+  }))
+    .filter((group) => group.features.some((f) => f in shares))
+    .sort((a, b) => b.share - a.share);
+}
+
+/** "Your profile": what the picks taught the model, most important first. */
 export default function ResultsScreen() {
-  // TODO: fetch the real results for this user's picks.
-  const { priorities, confidence } = MOCK_RESULTS;
-  const shown = priorities.slice(0, SHOWN);
-  const largest = Math.max(...shown.map((p) => p.share));
+  const { results } = useOnboarding();
+  const insets = useSafeAreaInsets();
+  const groups = results ? groupsFor(results) : [];
+  const largest = Math.max(...groups.map((g) => g.share), 0);
+  const unclear = results && confidenceLevel(results.confidence) === 'unclear';
 
   return (
-    <Screen
-      footer={
-        <>
-          <Button label="Start shooting" onPress={() => router.push('/onboarding/camera-access')} />
-          <Button variant="text" label="Keep picking" onPress={() => router.back()} />
-        </>
-      }>
-      <View style={styles.heading}>
-        <ThemedText type="subtitle">Your photo style</ThemedText>
-        <Badge label={CONFIDENCE_TEXT[confidence].badge} />
-        <ThemedText themeColor="textSecondary">{CONFIDENCE_TEXT[confidence].body}</ThemedText>
-      </View>
-      <View style={styles.list}>
-        <ThemedText style={styles.listTitle}>You tend to pick photos with…</ThemedText>
-        {shown.map((priority) => (
-          <PriorityRow key={priority.feature} priority={priority} largestShare={largest} />
-        ))}
-      </View>
-      <ThemedText type="small" themeColor="textSecondary">
-        The coach will focus on these when it gives you tips.
-      </ThemedText>
-    </Screen>
+    <View style={styles.screen}>
+      <GradientBackground />
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 },
+        ]}>
+        <Text style={styles.title}>Your profile</Text>
+
+        <View style={styles.card}>
+          {results ? (
+            <>
+              <Text style={styles.lead}>You care most about:</Text>
+              <View style={styles.groups}>
+                {groups.map((group) => (
+                  <View key={group.title} style={styles.group}>
+                    <View style={styles.groupHeading}>
+                      <SymbolView name={group.icon} size={22} tintColor={INK} />
+                      <Text style={styles.groupTitle}>{group.title}</Text>
+                    </View>
+                    {group.detail && <Text style={styles.detail}>{group.detail}</Text>}
+                    <View style={styles.track}>
+                      <View
+                        style={[
+                          styles.bar,
+                          { width: `${largest ? (group.share / largest) * 100 : 0}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View style={styles.note}>
+                <Text style={styles.noteText}>
+                  {unclear
+                    ? 'No clear pattern yet: your picks may depend on things we don’t measure, like lighting or outfit. Recording again sharpens it.'
+                    : 'This updates as you keep or remove photos in review.'}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.lead}>No profile yet.</Text>
+              <Text style={styles.noteText}>Record and pick your favourites to build one.</Text>
+            </>
+          )}
+
+          <PillButton label="Continue" onPress={() => router.push('/onboarding/voice')} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace('/onboarding/record')}
+            hitSlop={8}
+            style={styles.again}>
+            <Text style={styles.againText}>Record again</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    gap: Spacing.two,
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  list: {
-    gap: Spacing.three,
+  content: {
+    paddingHorizontal: 24,
+    gap: 24,
   },
-  listTitle: {
-    fontWeight: 600,
+  title: {
+    color: INK,
+    fontSize: 36,
+    lineHeight: 42,
+    fontWeight: '700',
+    letterSpacing: -0.6,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
+    padding: 24,
+    gap: 28,
+    shadowColor: '#000000',
+    shadowOpacity: 0.06,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  lead: {
+    color: MUTED,
+    fontSize: 17,
+  },
+  groups: {
+    gap: 24,
+  },
+  group: {
+    gap: 8,
+  },
+  groupHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  groupTitle: {
+    color: INK,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  detail: {
+    color: MUTED,
+    fontSize: 14,
+    marginLeft: 34,
+  },
+  track: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EEE9E6',
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  bar: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: INK,
+  },
+  note: {
+    borderRadius: 20,
+    padding: 18,
+    backgroundColor: '#F7F5F4',
+    borderWidth: 1,
+    borderColor: '#EFEBE8',
+  },
+  noteText: {
+    color: MUTED,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  again: {
+    alignSelf: 'center',
+    marginTop: -12,
+  },
+  againText: {
+    color: MUTED,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

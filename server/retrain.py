@@ -1,4 +1,5 @@
-"""Retrain someone's taste model from the photos they kept and removed in the app's review.
+"""Retrain someone's taste model from the app: the photos they kept and removed in review, and
+the snapshots they compared two at a time in onboarding.
 
 The app offers this once RETRAIN_AFTER photos have been reviewed since the last training.
 The result is saved like compare.py's: a new row in the database's weight history, and
@@ -48,15 +49,19 @@ def status(name: str) -> dict:
 
 
 def retrain(name: str) -> dict:
-    """Learn from every reviewed photo and save the result. Returns the new model's summary."""
+    """Learn from every reviewed photo and every comparison pick, and save the result. Returns
+    the new model's summary."""
     features, pairs = choices_db.verdict_pairs(name)
-    if not pairs:
-        raise ValueError("Keep at least one photo and remove at least one before retraining")
     if len(pairs) > MAX_PAIRS:
         pairs = random.Random(0).sample(pairs, MAX_PAIRS)
+    # Comparison picks are few and each one is a direct choice, so they're all kept.
+    pick_features, picks, ties = choices_db.pick_pairs(name)
+    features, pairs = {**features, **pick_features}, pairs + picks
+    if not pairs:
+        raise ValueError("Pick between some photos, or keep one and remove one, before retraining")
 
     ranker = Ranker(features)
-    ranker.fit(pairs)
+    ranker.fit(pairs, ties)
     confidence = round(ranker.region_confidence(pairs), 2)
     export = ranker.export()
     reviewed = len(features)
@@ -76,7 +81,7 @@ def retrain(name: str) -> dict:
         "reviewed": reviewed,
         "pairs": len(pairs),
         "confidence": confidence,
-        "priorities": export["priorities"][:5],
+        "priorities": export["priorities"],
         "regions": export["regions"],
     }
 

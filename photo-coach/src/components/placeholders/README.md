@@ -12,7 +12,6 @@ If the Figma component needs different props, update the screens that use it.
 | `Screen` | Page frame: safe areas, padding, back button, footer buttons |
 | `Button` | `primary`, `secondary` and `text` buttons |
 | `Illustration` | Dashed box marking where a Figma illustration goes |
-| `PhotoCard` | A photo to pick in "choose between pics" |
 | `ProgressBar` | Progress through the picks |
 | `StepRow` | Numbered step on "How it works" |
 | `PriorityRow` | One learned priority on the results screen |

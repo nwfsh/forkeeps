@@ -147,7 +147,10 @@ VIEW_FACING = {"front": 1.0, "three_quarter": 2 / 3, "profile": 1 / 3, "back": 0
 # Space in front of a turned head, as a fraction of frame width, that counts as enough.
 ENOUGH_LOOKING_ROOM = 0.3
 # Weaker regularisation fits the choices more closely; a few dozen choices need it fairly strong.
-REGULARISATION = 1.0
+# Strong enough that features which move together (smile and teeth, correlated 0.8) share the
+# credit: at 1.0 avery's teeth weight flipped to "more teeth" to offset a big negative smile weight,
+# though the photo with less teeth won 90% of the picks. 0.1 kept the same held-out accuracy (89%).
+REGULARISATION = 0.1
 # Fraction of pairs picked at random instead of where the model is least sure, so every
 # photo keeps getting shown.
 EXPLORE = 0.3
@@ -291,20 +294,35 @@ class Ranker:
         self.x = np.nan_to_num((raw - mean) / std)
         self.weights = np.zeros(len(FEATURES))
 
-    def fit(self, choices: list[tuple[str, str]]) -> None:
-        """Learn weights from (winner, loser) pairs. Pairs with unknown photos are ignored."""
+    def fit(self, choices: list[tuple[str, str]], ties: list[tuple[str, str]] = ()) -> None:
+        """Learn weights from (winner, loser) pairs and (a, b) ties. Pairs with unknown photos are
+        ignored. The ties are kept for the confidence checks, which resample only the choices."""
+        self.ties = list(ties)
         self.weights = self.learn(choices)
 
-    def learn(self, choices: list[tuple[str, str]]) -> np.ndarray:
-        """The weights (winner, loser) pairs give, without changing this ranker's own."""
-        diffs = [self.x[self.index[w]] - self.x[self.index[l]]
-                 for w, l in choices if w in self.index and l in self.index]
+    def learn(self, choices: list[tuple[str, str]], ties: Optional[list[tuple[str, str]]] = None) -> np.ndarray:
+        """The weights (winner, loser) pairs and (a, b) ties give, without changing this ranker's
+        own. Ties default to the ones it was fitted with."""
+        ties = getattr(self, "ties", []) if ties is None else ties
+        known = lambda a, b: a in self.index and b in self.index
+        diffs = [self.x[self.index[w]] - self.x[self.index[l]] for w, l in choices if known(w, l)]
         if not diffs:
             return np.zeros(len(FEATURES))
         d = np.array(diffs)
         # Each choice is shown both ways round so the model sees both outcomes.
+        rows, labels = [d, -d], [np.ones(len(d)), np.zeros(len(d))]
+        weights = [np.ones(len(d)), np.ones(len(d))]
+        # A tie is half a win each way (the usual way ties enter a Bradley-Terry model): it pulls
+        # the two photos' scores together, so what differs between them is learned not to matter.
+        tied = [self.x[self.index[a]] - self.x[self.index[b]] for a, b in ties if known(a, b)]
+        if tied:
+            t = np.array(tied)
+            for half in (t, -t):
+                rows += [half, half]
+                labels += [np.ones(len(t)), np.zeros(len(t))]
+                weights += [np.full(len(t), 0.5), np.full(len(t), 0.5)]
         model = LogisticRegression(C=REGULARISATION, fit_intercept=False)
-        model.fit(np.vstack([d, -d]), np.r_[np.ones(len(d)), np.zeros(len(d))])
+        model.fit(np.vstack(rows), np.concatenate(labels), sample_weight=np.concatenate(weights))
         return model.coef_[0]
 
     def confidence(self, choices: list[tuple[str, str]]) -> float:

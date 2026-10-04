@@ -1,4 +1,4 @@
-import type { CameraView } from 'expo-camera';
+import type { CameraView, PictureRef } from 'expo-camera';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 
@@ -33,9 +33,14 @@ export function useFrameAnalysis(
   cameraRef: RefObject<CameraView | null>,
   enabled: boolean,
   /** Called with every new analysis and the frame it describes, e.g. to auto-capture. */
-  onFrame?: (analysis: Analysis, frameUri: string) => void
+  onFrame?: (analysis: Analysis, frameUri: string) => void,
 ) {
-  const [state, setState] = useState<FrameAnalysisState>({ analysis: null, frameUri: null, error: null, fps: 0 });
+  const [state, setState] = useState<FrameAnalysisState>({
+    analysis: null,
+    frameUri: null,
+    error: null,
+    fps: 0,
+  });
   const timestamps = useRef<number[]>([]);
   // The latest callback, so the loop doesn't restart whenever the screen re-renders.
   const onFrameRef = useRef(onFrame);
@@ -68,7 +73,10 @@ export function useFrameAnalysis(
       try {
         await snapshotRef.current;
         for (let i = 0; i < count && cameraRef.current; i++) {
-          const photo = await cameraRef.current.takePictureAsync({ quality: 0.9, shutterSound: i === 0 });
+          const photo = await cameraRef.current.takePictureAsync({
+            quality: 0.9,
+            shutterSound: i === 0,
+          });
           uris.push(photo.uri);
           if (i < count - 1) await sleep(BURST_GAP_MS);
         }
@@ -77,7 +85,7 @@ export function useFrameAnalysis(
         busyRef.current = false;
       }
     },
-    [cameraRef]
+    [cameraRef],
   );
 
   useEffect(() => {
@@ -139,14 +147,24 @@ export function useFrameAnalysis(
   return { ...state, capture, captureBurst };
 }
 
-async function snapshot(camera: CameraView): Promise<string> {
-  const photo = await camera.takePictureAsync({ quality: 0.5, shutterSound: false });
-  return shrink(photo.uri);
+/**
+ * A small frame from the camera. The full-size picture stays in memory as a reference instead of
+ * being written to a file first, which is most of the time a frame takes on the phone.
+ */
+export async function snapshot(camera: CameraView): Promise<string> {
+  const picture = await camera.takePictureAsync({
+    quality: 0.5,
+    shutterSound: false,
+    pictureRef: true,
+  });
+  return shrink(picture);
 }
 
-/** A small copy of a photo, the size the server analyses frames at. */
-export async function shrink(uri: string): Promise<string> {
-  const rendered = await ImageManipulator.manipulate(uri).resize({ width: FRAME_WIDTH, height: null }).renderAsync();
+/** A small copy of a photo (a file or an in-memory picture), the size the server analyses frames at. */
+export async function shrink(source: string | PictureRef): Promise<string> {
+  const rendered = await ImageManipulator.manipulate(source)
+    .resize({ width: FRAME_WIDTH, height: null })
+    .renderAsync();
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
   return saved.uri;
 }
