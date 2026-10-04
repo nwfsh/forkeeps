@@ -239,7 +239,26 @@ export type RetrainResult = {
   confidence: number;
   /** Most influential first, worded like "Smiling, more of it". */
   priorities: { feature: string; prefers: string; share: number; weight: number }[];
+  /** The model this retrain replaced, for showing what changed; null for the first model. */
+  before?: { confidence: number | null; priorities: RetrainResult['priorities'] } | null;
 };
+
+/**
+ * The photos the current taste model is least sure about, for the Tune swiping: `score` is its
+ * chance each beats an average photo (0.5 is a coin flip). Fails if there's no model yet.
+ */
+export async function fetchUncertain(
+  photos: { id: string; analysis: Analysis | null }[],
+): Promise<{ id: string; score: number }[]> {
+  const body = await json<{ photos: { id: string; score: number }[] }>(
+    await fetch(`${SERVER_URL}/model/${encodeURIComponent(person)}/uncertain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photos: photos.map((p) => ({ id: p.id, analysis: withoutLandmarks(p.analysis) })) }),
+    }),
+  );
+  return body.photos;
+}
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {

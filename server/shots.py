@@ -53,20 +53,26 @@ RULES_PERFECT_SCORE = 0.65
 # Without a model: each tip on screen costs this much of the rule-based score.
 WARNING_COST = 0.15
 
-_models: dict[str, tuple[float, dict]] = {}
+_models: dict[str, tuple[bytes, dict]] = {}
 
 
 def load_model(person: Optional[str]) -> Optional[dict]:
-    """Someone's saved weights, re-read only when the file changes. None if they have none."""
+    """Someone's saved weights, parsed again only when the file's contents change. None if they
+    have none.
+
+    Compared by contents, not modified time: a retrain can rewrite the file within the same clock
+    tick (Windows often reports the same time), and the old model would then be kept. The file is
+    a few KB, so reading it for every frame costs nothing noticeable.
+    """
     if not person:
         return None
     path: Path = WEIGHTS_FOLDER / f"{choices_db.person_key(person)}.json"
     if not path.exists():
         return None
-    mtime = path.stat().st_mtime
+    data = path.read_bytes()
     cached = _models.get(path.name)
-    if not cached or cached[0] != mtime:
-        _models[path.name] = cached = (mtime, json.loads(path.read_text()))
+    if not cached or cached[0] != data:
+        _models[path.name] = cached = (data, json.loads(data))
     return cached[1]
 
 

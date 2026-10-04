@@ -13,14 +13,52 @@ import sys
 from datetime import datetime, timezone
 
 import choices_db
-from ranker import Ranker
-from score import WEIGHTS_FOLDER
+from ranker import Ranker, photo_features
+from score import WEIGHTS_FOLDER, win_chance
 
 # Reviewed photos since the last training before retraining is offered.
 RETRAIN_AFTER = 10
 # Every kept photo beats every removed one, which grows fast (40 kept x 40 removed is 1600
 # pairs); a sample this size teaches the same and keeps the confidence check quick.
 MAX_PAIRS = 400
+# How many photos the app's "Tune" swiping asks about: the ones the current model is least
+# sure of, where a like or dislike teaches it the most.
+TUNE_PHOTOS = 10
+# How many of the model's priorities a retrain reports from before and after.
+SHOWN_PRIORITIES = 3
+
+
+def saved_model(name: str):
+    """The model the app currently scores with (preferences/weights/<person>.json), or None."""
+    path = WEIGHTS_FOLDER / f"{choices_db.person_key(name)}.json"
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+def uncertain(name: str, photos: list[dict], count: int = TUNE_PHOTOS) -> list[dict]:
+    """The photos ({"id", "analysis"}) the current model is least sure about, most unsure first,
+    each with its score: the model's chance it beats an average photo, where 0.5 is a coin flip.
+
+    Photos whose measurements can't be trusted (no face, several people...) are left out, since a
+    swipe on them would teach the model something false.
+    """
+    model = saved_model(name)
+    if model is None:
+        raise ValueError("No taste model yet: finish onboarding or review some photos first")
+    scored = []
+    for photo in photos:
+        analysis = photo.get("analysis")
+        if not analysis or analysis.get("red_flags"):
+            continue
+        try:
+            scored.append({"id": photo["id"], "score": round(win_chance(photo_features(analysis), model), 3)})
+        except (KeyError, TypeError):
+            continue
+    return sorted(scored, key=lambda p: abs(p["score"] - 0.5))[:count]
+
+
+def summary_of(model: dict) -> dict:
+    """The parts of a saved model worth showing: how sure it is and what it cares about most."""
+    return {"confidence": model.get("confidence"), "priorities": model["priorities"][:SHOWN_PRIORITIES]}
 
 
 def last_training(name: str):
@@ -59,6 +97,8 @@ def retrain(name: str) -> dict:
     features, pairs = {**features, **pick_features}, pairs + picks
     if not pairs:
         raise ValueError("Pick between some photos, or keep one and remove one, before retraining")
+    # Kept to show what this retrain changed.
+    before = saved_model(name)
 
     ranker = Ranker(features)
     ranker.fit(pairs, ties)
@@ -83,6 +123,8 @@ def retrain(name: str) -> dict:
         "confidence": confidence,
         "priorities": export["priorities"],
         "regions": export["regions"],
+        # The model this one replaced, or None if it's the first.
+        "before": summary_of(before) if before else None,
     }
 
 
