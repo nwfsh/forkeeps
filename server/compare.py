@@ -27,12 +27,12 @@ BAR_COLOUR = "#2a78d6"
 
 @st.cache_data(show_spinner=False)
 def analyze_photo(path: str):
-    """A display-sized copy of the photo and its ranking features."""
+    """A display-sized copy of the photo, its ranking features and its red flags."""
     rgb = vision.decode_image(Path(path).read_bytes())
-    features = photo_features(vision.analyze(rgb))
+    result = vision.analyze(rgb)
     scale = PREVIEW_WIDTH / rgb.shape[1]
     preview = cv2.resize(rgb, (PREVIEW_WIDTH, round(rgb.shape[0] * scale)))
-    return preview, features
+    return preview, photo_features(result), result["red_flags"]
 
 
 def photo_paths(folder: Path) -> list[Path]:
@@ -96,11 +96,29 @@ name = st.sidebar.selectbox("Whose photos", list(people),
 paths = people[name]
 
 progress = st.progress(0.0)
-previews, features = {}, {}
+previews, features, flags = {}, {}, {}
 for i, path in enumerate(paths):
     progress.progress(i / len(paths), f"Analysing {path.name} ({i + 1}/{len(paths)})")
-    previews[photo_id(path)], features[photo_id(path)] = analyze_photo(str(path))
+    previews[photo_id(path)], features[photo_id(path)], flags[photo_id(path)] = analyze_photo(str(path))
 progress.empty()
+
+# Photos whose measurements can't be trusted are left out, so they don't teach the ranker
+# anything false. Bad-but-measurable photos (a blink, an awkward crop) stay in.
+flag_counts = {code: sum(code in f for f in flags.values()) for code in vision.RED_FLAGS}
+raised = [code for code in vision.RED_FLAGS if flag_counts[code]]
+leave_out = st.sidebar.multiselect(
+    "Leave out photos with", raised, default=raised,
+    format_func=lambda code: f"{vision.RED_FLAGS[code]} ({flag_counts[code]})",
+    help="These photos can't be measured reliably, so picks involving them would mislead the model.")
+left_out = {photo: f for photo, f in flags.items() if set(f) & set(leave_out)}
+if left_out:
+    with st.sidebar.expander(f"{len(left_out)} of {len(flags)} photos left out"):
+        for photo, f in left_out.items():
+            st.image(previews[photo], caption=", ".join(vision.RED_FLAGS[code] for code in f))
+features = {photo: v for photo, v in features.items() if photo not in left_out}
+if len(features) < 2:
+    st.warning("Fewer than two photos are left to compare. Leave out fewer kinds of photo in the sidebar.")
+    st.stop()
 
 
 choices = choices_db.load(name)
@@ -192,7 +210,11 @@ def show_results() -> None:
                  alt.Tooltip("share:Q", title="Share", format=".0%"),
                  alt.Tooltip("weight:Q", title="Weight", format=".2f")],
     )
-    st.altair_chart(chart, width="stretch")
+    try:
+        st.altair_chart(chart, width="stretch")
+    except TypeError:
+        # Streamlit 1.50, the last release for Python 3.9, has no width option on charts yet.
+        st.altair_chart(chart, use_container_width=True)
     if same_everywhere:
         st.caption("Not ranked because they're the same in every photo here: "
                    + ", ".join(same_everywhere).lower())

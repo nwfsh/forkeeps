@@ -66,9 +66,13 @@ st.set_page_config(page_title="Photo measurements", layout="wide")
 st.title("Photo measurements")
 
 folder = Path(st.sidebar.text_input("Photo folder", str(DEFAULT_FOLDER)))
-paths = sorted(p for p in folder.rglob("*") if p.suffix.lower() in PHOTO_TYPES) if folder.is_dir() else []
+# Each subfolder is one person's photos (avery, salma, sarah, ...).
+people_folders = sorted(p.name for p in folder.iterdir() if p.is_dir()) if folder.is_dir() else []
+chosen = st.sidebar.selectbox("Person", people_folders + ["all"]) if people_folders else "all"
+search = folder if chosen == "all" else folder / chosen
+paths = sorted(p for p in search.rglob("*") if p.suffix.lower() in PHOTO_TYPES) if search.is_dir() else []
 if not paths:
-    st.warning(f"No photos found in {folder}")
+    st.warning(f"No photos found in {search}")
     st.stop()
 
 progress = st.progress(0.0)

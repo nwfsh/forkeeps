@@ -15,7 +15,6 @@ POSE_MODEL_PATH = Path(__file__).parent / "models" / "pose_landmarker_full.task"
 # A face whose box comes within this fraction of the frame edge counts as cut off.
 EDGE_MARGIN = 0.02
 # Face height as a fraction of frame height, for a single-person shot.
-TOO_FAR = 0.12
 TOO_CLOSE = 0.55
 # Blendshape scores (0-1) above these decide the mode. Starting guesses; tune on real photos.
 EYES_CLOSED = 0.6
@@ -51,6 +50,16 @@ ANGLED = 0.5
 JOINT_MARGIN = 0.04
 # Space in front of a turned head, as a fraction of frame width, below which it feels cramped.
 LOOKING_ROOM = 0.3
+# A face shorter than this fraction of the frame has too few pixels to read expressions from.
+MIN_FACE_SIZE = 0.05
+# Reasons a photo's measurements can't be trusted, so it shouldn't be used to learn preferences.
+RED_FLAGS = {
+    "no_person": "No one in the photo",
+    "no_face": "Face not visible",
+    "face_cut_off": "Face cut off by the frame",
+    "face_too_small": "Face too small to measure",
+    "several_people": "More than one person",
+}
 
 _landmarker = vision.FaceLandmarker.create_from_options(
     vision.FaceLandmarkerOptions(
@@ -316,6 +325,7 @@ def analyze(rgb: np.ndarray) -> dict:
         "faces": faces,
         "people": people,
         "warnings": framing_warnings(faces, people),
+        "red_flags": red_flags(faces, people),
     }
 
 
@@ -365,6 +375,26 @@ def detect_mode(scores: dict, measurements: dict) -> str:
     return "serious"
 
 
+def red_flags(faces: list[dict], people: list[dict]) -> list[str]:
+    """Codes from RED_FLAGS for why this photo's measurements can't be trusted.
+
+    These are about whether the photo can be measured, not whether it's a good photo:
+    a blink or an awkward crop is a real preference and doesn't raise a flag.
+    """
+    if not faces and not people:
+        return ["no_person"]
+    flags = []
+    if not faces:
+        flags.append("no_face")
+    if any(face["cut_off"] for face in faces):
+        flags.append("face_cut_off")
+    if faces and max(face["bbox"]["h"] for face in faces) < MIN_FACE_SIZE:
+        flags.append("face_too_small")
+    if len(faces) > 1 or len(people) > 1:
+        flags.append("several_people")
+    return flags
+
+
 def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
     """Basic framing checks, most important first. The personalised ranking replaces this later."""
     if not faces and not people:
@@ -386,14 +416,9 @@ def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
             warnings.append({"code": "looking_room",
                              "message": f"Leave more space on the {person['facing']}, where you're looking"})
 
-    # Face size only says "too far" when the shot is meant to be about the face.
-    full_body = len(people) == 1 and people[0]["crop"] in ("full_body", "knees_up")
-    if len(faces) == 1:
-        h = faces[0]["bbox"]["h"]
-        if h < TOO_FAR and not full_body:
-            warnings.append({"code": "too_far", "message": "Move closer"})
-        elif h > TOO_CLOSE:
-            warnings.append({"code": "too_close", "message": "Step back a little"})
+    # No "move closer": waist-up and full-body shots are deliberate, so a small face isn't a mistake.
+    if len(faces) == 1 and faces[0]["bbox"]["h"] > TOO_CLOSE:
+        warnings.append({"code": "too_close", "message": "Step back a little"})
     return warnings
 
 
