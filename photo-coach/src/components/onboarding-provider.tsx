@@ -9,6 +9,8 @@ type OnboardingContextValue = {
   picks: Pick[];
   pick: (winner: string, loser: string) => void;
   finish: () => void;
+  /** Shows onboarding again from the start, e.g. from "Replay intro". */
+  restart: () => void;
 };
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
@@ -27,8 +29,15 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setFinished(true);
   }
 
+  function restart() {
+    saveFinished(false);
+    setPicks([]);
+    // The root layout's guards then swap the camera tabs for onboarding.
+    setFinished(false);
+  }
+
   return (
-    <OnboardingContext.Provider value={{ finished, picks, pick, finish }}>
+    <OnboardingContext.Provider value={{ finished, picks, pick, finish, restart }}>
       {children}
     </OnboardingContext.Provider>
   );

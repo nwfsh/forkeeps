@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useOnboarding } from '@/components/onboarding-provider';
 import { usePhotos } from '@/components/photos-provider';
 import { RetrainBanner } from '@/components/retrain-banner';
 import { ThemedText } from '@/components/themed-text';
@@ -27,6 +28,7 @@ const GAP = 2;
 
 export default function PhotosScreen() {
   const { photos: all } = usePhotos();
+  const { restart } = useOnboarding();
   // Burst shots that weren't the best wait in review; they join the grid once kept.
   const photos = all.filter((p) => !p.alternate || p.kept);
   const { width } = useWindowDimensions();
@@ -48,6 +50,11 @@ export default function PhotosScreen() {
           )}
         </View>
         <RetrainBanner />
+        <Pressable accessibilityRole="button" onPress={restart} style={styles.replay} hitSlop={8}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Replay intro
+          </ThemedText>
+        </Pressable>
         {photos.length === 0 ? (
           <ThemedText style={styles.empty}>Photos you take on the Camera tab show up here.</ThemedText>
         ) : (
@@ -187,6 +194,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
+  },
+  replay: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
   },
   reviewButton: {
     paddingHorizontal: Spacing.three,
