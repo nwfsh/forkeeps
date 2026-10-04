@@ -1,4 +1,5 @@
 import math
+import threading
 import time
 from typing import Literal, Optional
 
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 import angles
 import choices_db
 import comparing
+import generate_voices
 import makeup
 import personas
 import ranker
@@ -241,17 +243,43 @@ def clear_makeup_look(person: str):
 
 
 @app.get("/personas")
-def list_personas():
-    """The coach's voices, each with the clips that have been recorded for it."""
+def list_personas(person: Optional[str] = None):
+    """The coach's voices, each with the clips that have been recorded for it. With `person`,
+    also each voice calling them by name ("name_<person>"), recorded in the background the first
+    time it's asked for."""
+    name = personas.name_clip(person) if person else None
+    if name and not all(personas.clip_path(p, name).exists() for p in personas.PERSONAS):
+        record_name_later(person)
     return [{"id": persona_id, "name": persona["name"], "description": persona["description"],
-             "clips": personas.recorded(persona_id)}
+             "clips": personas.recorded(persona_id)
+             + ([name] if name and personas.clip_path(persona_id, name).exists() else [])}
             for persona_id, persona in personas.PERSONAS.items()]
+
+
+_recording_names: set = set()
+
+
+def record_name_later(person: str) -> None:
+    """Records the voices saying this person's name, once, without holding up the request."""
+    if person in _recording_names:
+        return
+    _recording_names.add(person)
+
+    def record():
+        try:
+            generate_voices.record_name(generate_voices.api_key(), person)
+        except (SystemExit, Exception) as e:  # call() exits on API errors; keep the server up
+            print(f"Couldn't record {person}'s name: {e}")
+        finally:
+            _recording_names.discard(person)
+
+    threading.Thread(target=record, daemon=True).start()
 
 
 @app.get("/voice/{persona}/{clip}")
 def voice(persona: str, clip: str):
     # Checked against the known names so the path can't be steered outside the voices folder.
-    if persona not in personas.PERSONAS or clip not in personas.CLIPS:
+    if persona not in personas.PERSONAS or (clip not in personas.CLIPS and not personas.is_name_clip(clip)):
         raise HTTPException(status_code=404, detail="No such voice clip")
     path = personas.clip_path(persona, clip)
     if not path.exists():

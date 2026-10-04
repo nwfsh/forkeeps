@@ -11,7 +11,7 @@ import { INK, MUTED, StepDots } from '@/components/onboarding-style';
 import { snapshot } from '@/hooks/use-frame-analysis';
 import { analyzeFrame, learnFace, pickSnapshots } from '@/lib/server';
 
-const RECORD_SECONDS = 20;
+const RECORD_SECONDS = 15;
 // A 3-2-1 before recording, so they're settled by the time frames are kept.
 const COUNTDOWN_SECONDS = 3;
 const TICK_MS = 250;

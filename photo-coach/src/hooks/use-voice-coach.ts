@@ -19,7 +19,13 @@ const RETRY_MS = 5000;
  * (see CLIPS in server/personas.py), or null to stay quiet.
  * Lines never cut each other off, and praise is said once rather than repeated.
  */
-export function useVoiceCoach(clip: string | null) {
+export function useVoiceCoach(
+  clip: string | null,
+  /** A line to say just before `clip` the next time it's spoken, e.g. their name in a group. */
+  intro: string | null = null,
+  /** Called once the intro has been said. */
+  onIntro?: () => void,
+) {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [choice, setChoice] = useState<string | null>(loadVoiceChoice);
   const player = useAudioPlayer(null);
@@ -28,6 +34,8 @@ export function useVoiceCoach(clip: string | null) {
   const local = useRef(new Map<string, string>());
   /** When a line was handed to the player and is still loading, else 0. */
   const loading = useRef(0);
+  /** Lines still to play, in order, after the current one (the tip after its intro). */
+  const queue = useRef<string[]>([]);
 
   // Only voices with something recorded can be picked.
   const available = personas.filter((p) => p.clips.length > 0);
@@ -87,17 +95,29 @@ export function useVoiceCoach(clip: string | null) {
         loading.current = 0;
         return;
       }
+      if (queue.current.length) {
+        // The rest of a sequence follows straight on, once the line before has finished.
+        if (player.playing) return;
+        player.replace({ uri: queue.current.shift()! });
+        loading.current = now;
+        return;
+      }
       const last = spoken.current;
       if (now - since < HOLD_MS || now - last.at < MIN_GAP_MS || player.playing) return;
       if (last.key === key && (clip === GOOD_CLIP || now - last.at < REPEAT_MS)) return;
       const uri = local.current.get(key);
       if (!uri) return;
       spoken.current = { key, at: now };
-      player.replace({ uri });
+      const introUri = intro ? local.current.get(`${persona.id}/${intro}`) : undefined;
+      if (introUri) {
+        queue.current = [uri];
+        onIntro?.();
+      }
+      player.replace({ uri: introUri ?? uri });
       loading.current = now;
     }, CHECK_MS);
     return () => clearInterval(timer);
-  }, [clip, persona, player]);
+  }, [clip, persona, player, intro, onIntro]);
 
   /** Steps through off, then each voice in turn. */
   function next() {
