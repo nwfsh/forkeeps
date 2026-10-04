@@ -1,0 +1,26 @@
+[
+ {
+  "winner": "data/training-recognition/sarah/IMG_5029.JPG",
+  "loser": "data/training-recognition/sarah/IMG_4960.JPG",
+  "model_agreed": null,
+  "at": "2026-10-04T00:15:06+00:00"
+ },
+ {
+  "winner": "data/training-recognition/sarah/IMG_4978.JPG",
+  "loser": "data/training-recognition/sarah/IMG_4962.JPG",
+  "model_agreed": true,
+  "at": "2026-10-04T00:15:13+00:00"
+ },
+ {
+  "winner": "data/training-recognition/sarah/IMG_4954.JPG",
+  "loser": "data/training-recognition/sarah/IMG_5016.JPG",
+  "model_agreed": true,
+  "at": "2026-10-04T00:15:21+00:00"
+ },
+ {
+  "winner": "data/training-recognition/sarah/IMG_5026.JPG",
+  "loser": "data/training-recognition/sarah/IMG_4956.JPG",
+  "model_agreed": false,
+  "at": "2026-10-04T00:15:26+00:00"
+ }
+]

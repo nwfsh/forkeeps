@@ -9,3 +9,4 @@ pandas
 jupyter
 supabase
 streamlit
+pytest
