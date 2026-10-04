@@ -6,12 +6,15 @@ import choices_db
 import comparing
 import main
 import ranker as R
+import retrain
 from test_snapshots import recording
 
 
 @pytest.fixture(autouse=True)
 def scratch_db(tmp_path, monkeypatch):
     monkeypatch.setattr(choices_db, "DB_PATH", tmp_path / "choices.db")
+    # Retraining writes the person's weights file; keep it out of the real preferences/weights/.
+    monkeypatch.setattr(retrain, "WEIGHTS_FOLDER", tmp_path / "weights")
 
 
 def smile(frame):

@@ -43,11 +43,19 @@ export default function PhotosScreen() {
           <ThemedText type="subtitle">
             {photos.length} photo{photos.length === 1 ? '' : 's'}
           </ThemedText>
-          {toReview > 0 && (
-            <Pressable style={styles.reviewButton} onPress={() => router.push('/review')}>
-              <Text style={styles.reviewText}>Review {toReview}</Text>
-            </Pressable>
-          )}
+          <View style={styles.headerButtons}>
+            {/* Swipe the photos the coach is least sure about, then retrain the model you have. */}
+            {photos.length > 1 && (
+              <Pressable style={styles.tuneButton} onPress={() => router.push('/tune')}>
+                <Text style={styles.tuneText}>Tune</Text>
+              </Pressable>
+            )}
+            {toReview > 0 && (
+              <Pressable style={styles.reviewButton} onPress={() => router.push('/review')}>
+                <Text style={styles.reviewText}>Review {toReview}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
         <RetrainBanner />
         <View style={styles.replayRow}>
@@ -214,6 +222,21 @@ function Viewer({
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  tuneButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#3DDC84',
+  },
+  tuneText: {
+    color: '#3DDC84',
+    fontWeight: '700',
   },
   headerRow: {
     flexDirection: 'row',

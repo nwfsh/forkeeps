@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { forwardRef, useImperativeHandle } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -91,6 +91,26 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard({
   );
 });
 
+/** The round ✕ or ♥ button under a swipe card, which throws the card the same way a swipe does. */
+export function RoundButton({ label, color, disabled, onPress, accessibilityLabel }: {
+  label: string;
+  color: string;
+  disabled: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.round, { borderColor: color }, (pressed || disabled) && styles.pressed]}>
+      <Text style={[styles.roundLabel, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /** The next photo, sitting still behind the one being swiped. */
 export function NextCard({ uri }: { uri: string }) {
   return (
@@ -131,6 +151,22 @@ const styles = StyleSheet.create({
     right: 24,
     borderColor: REMOVE,
     transform: [{ rotate: '14deg' }],
+  },
+  round: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(127,127,127,0.12)',
+  },
+  pressed: {
+    opacity: 0.5,
+  },
+  roundLabel: {
+    fontSize: 28,
+    fontWeight: '700',
   },
   stampText: {
     fontSize: 32,

@@ -197,6 +197,21 @@ def model_status(person: str):
     return retrain.status(person)
 
 
+class TunePhotos(BaseModel):
+    # {"id", "analysis"} for each photo on the phone that could be swiped on.
+    photos: list[dict]
+    count: int = retrain.TUNE_PHOTOS
+
+
+@app.post("/model/{person}/uncertain")
+def uncertain_photos(person: str, body: TunePhotos):
+    """The photos this person's current model is least sure about, for the app's Tune swiping."""
+    try:
+        return {"photos": retrain.uncertain(person, body.photos, body.count)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/model/{person}/retrain")
 def retrain_model(person: str):
     """Retrain this person's taste model from every photo they've kept or removed."""

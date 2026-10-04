@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePhotos } from '@/components/photos-provider';
 import { RetrainBanner } from '@/components/retrain-banner';
-import { NextCard, SwipeCard, type SwipeCardHandle } from '@/components/swipe-card';
+import { NextCard, RoundButton, SwipeCard, type SwipeCardHandle } from '@/components/swipe-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -113,25 +113,6 @@ export default function ReviewScreen() {
   );
 }
 
-function RoundButton({ label, color, disabled, onPress, accessibilityLabel }: {
-  label: string;
-  color: string;
-  disabled: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [styles.round, { borderColor: color }, (pressed || disabled) && styles.pressed]}>
-      <Text style={[styles.roundLabel, { color }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
@@ -171,21 +152,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.six,
     paddingBottom: Spacing.four,
-  },
-  round: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(127,127,127,0.12)',
-  },
-  pressed: {
-    opacity: 0.5,
-  },
-  roundLabel: {
-    fontSize: 28,
-    fontWeight: '700',
   },
 });

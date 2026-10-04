@@ -71,3 +71,54 @@ def test_endpoints():
     assert client.get("/model/me").json()["ready"] is True
     res = client.post("/model/me/retrain").json()
     assert res["reviewed"] == retrain.RETRAIN_AFTER and res["status"]["ready"] is False
+
+
+def tune_photos(count: int, seed: int = 5) -> list:
+    """Photos as the app sends them; their "analysis" carries made-up features directly."""
+    return [{"id": name, "analysis": {"features": features}} for name, features in made_up_photos(count, seed).items()]
+
+
+def test_uncertain_needs_a_model():
+    with pytest.raises(ValueError):
+        retrain.uncertain("me", tune_photos(5))
+
+
+def test_uncertain_picks_the_coin_flips(monkeypatch):
+    monkeypatch.setattr(retrain, "photo_features", lambda analysis: analysis["features"])
+    review(30)
+    retrain.retrain("me")
+    chosen = retrain.uncertain("me", tune_photos(40), count=5)
+    assert len(chosen) == 5
+    gaps = [abs(p["score"] - 0.5) for p in chosen]
+    assert gaps == sorted(gaps)
+    model = retrain.saved_model("me")
+    every = sorted(abs(retrain.win_chance(p["analysis"]["features"], model) - 0.5) for p in tune_photos(40))
+    assert gaps[-1] <= every[4] + 1e-3  # the five closest to a coin flip, not just any five
+
+
+def test_uncertain_skips_unmeasurable_photos(monkeypatch):
+    monkeypatch.setattr(retrain, "photo_features", lambda analysis: analysis["features"])
+    review(30)
+    retrain.retrain("me")
+    photos = tune_photos(3)
+    photos[0]["analysis"]["red_flags"] = ["several_people"]
+    photos[1]["analysis"] = None
+    assert [p["id"] for p in retrain.uncertain("me", photos)] == [photos[2]["id"]]
+
+
+def test_retrain_reports_the_model_it_replaced():
+    review(30)
+    first = retrain.retrain("me")
+    assert first["before"] is None
+    review(10, seed=1)
+    second = retrain.retrain("me")
+    assert second["before"]["confidence"] == first["confidence"]
+    assert len(second["before"]["priorities"]) == retrain.SHOWN_PRIORITIES
+
+
+def test_uncertain_endpoint():
+    client = TestClient(main.app)
+    assert client.post("/model/me/uncertain", json={"photos": []}).status_code == 400
+    review(30)
+    retrain.retrain("me")
+    assert client.post("/model/me/uncertain", json={"photos": []}).json() == {"photos": []}
