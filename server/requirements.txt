@@ -9,3 +9,6 @@ pandas
 jupyter
 supabase
 streamlit
+insightface
+onnxruntime
+pillow-heif
