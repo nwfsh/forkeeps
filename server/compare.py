@@ -2,11 +2,8 @@
 
 Run from server/:  streamlit run compare.py
 """
-import json
 import os
 import random
-import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 import altair as alt
@@ -14,12 +11,12 @@ import cv2
 import pandas as pd
 import streamlit as st
 
+import choices_db
 import vision
 from ranker import CLEAR, LIKELY, MAX_CHOICES, MIN_CHOICES, RECENT_GUESSES, Ranker, photo_features
 
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_FOLDER = REPO / "data" / "training-recognition"
-CHOICES_FOLDER = Path(__file__).resolve().parent / "preferences"
 PHOTO_TYPES = {".jpg", ".jpeg", ".png"}
 PREVIEW_WIDTH = 700
 SHOWN_PHOTOS = 5
@@ -48,31 +45,9 @@ def photo_id(path: Path) -> str:
     return os.path.relpath(path, REPO)
 
 
-def choices_file(name: str) -> Path:
-    """Where one person's choices are saved."""
-    return CHOICES_FOLDER / f"{re.sub(r'[^A-Za-z0-9_-]', '', name) or 'me'}.json"
-
-
-def load_choices(name: str) -> list[dict]:
-    path = choices_file(name)
-    return json.loads(path.read_text()) if path.exists() else []
-
-
-def save_choices(name: str, choices: list[dict]) -> None:
-    CHOICES_FOLDER.mkdir(exist_ok=True)
-    choices_file(name).write_text(json.dumps(choices, indent=1))
-
-
 def pick(name: str, winner: str, loser: str, winner_probability) -> None:
     """Record a choice, noting whether the model (before seeing it) would have guessed it."""
-    choices = load_choices(name)
-    choices.append({
-        "winner": winner,
-        "loser": loser,
-        "model_agreed": None if winner_probability is None else winner_probability > 0.5,
-        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    })
-    save_choices(name, choices)
+    choices_db.add(name, winner, loser, None if winner_probability is None else winner_probability > 0.5)
     st.session_state.pair = None
 
 
@@ -87,17 +62,15 @@ def set_view(name: str, view: str) -> None:
 
 
 def start_over(name: str) -> None:
-    save_choices(name, [])
+    choices_db.clear(name)
     st.session_state.view.pop(name, None)
     st.session_state.skipped = set()
     st.session_state.pair = None
 
 
 def undo(name: str) -> None:
-    choices = load_choices(name)
-    if choices:
-        last = choices.pop()
-        save_choices(name, choices)
+    last = choices_db.remove_last(name)
+    if last:
         st.session_state.pair = (last["winner"], last["loser"])
         st.session_state.view.pop(name, None)
 
@@ -130,7 +103,7 @@ for i, path in enumerate(paths):
 progress.empty()
 
 
-choices = load_choices(name)
+choices = choices_db.load(name)
 pairs = [(c["winner"], c["loser"]) for c in choices]
 ranker = Ranker(features)
 ranker.fit(pairs)
@@ -143,7 +116,7 @@ st.sidebar.button("Undo last pick", on_click=undo, args=(name,), disabled=not ch
 with st.sidebar.popover("Start over", disabled=not choices):
     st.write(f"This deletes all {len(choices)} of {name}'s picks.")
     st.button("Delete my picks", type="primary", on_click=start_over, args=(name,))
-st.sidebar.caption(f"Saved to {choices_file(name).relative_to(REPO)}")
+st.sidebar.caption(f"Saved to {choices_db.DB_PATH.relative_to(REPO).as_posix()}")
 
 
 def show_comparison() -> None:
