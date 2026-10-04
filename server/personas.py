@@ -13,6 +13,7 @@ MODEL = "eleven_multilingual_v2"
 # their "clip"; looks_good is what the app plays when there are no warnings.
 CLIPS = (
     "no_person",
+    "face_covered",
     "cut_off_left", "cut_off_right", "cut_off_top", "cut_off_bottom",
     "cut_at_joint_ankles", "cut_at_joint_knees", "cut_at_joint_hips",
     "looking_room_left", "looking_room_right",
@@ -33,6 +34,7 @@ PERSONAS = {
         "settings": {"stability": 0.3, "similarity_boost": 0.75, "style": 0.6, "speed": 1.1},
         "lines": {
             "no_person": "Yo, where'd you go? Get in the frame!",
+            "face_covered": "Whoa, I can't see that face! Move whatever's in front of it!",
             "cut_off_left": "Hold up, you're falling off the left! Slide back in!",
             "cut_off_right": "Hold up, you're falling off the right! Slide back in!",
             "cut_off_top": "We're losing the top of your head! Tilt it up, tilt it up!",
@@ -59,6 +61,7 @@ PERSONAS = {
         "settings": {"stability": 0.75, "similarity_boost": 0.75, "style": 0.1, "speed": 1.0},
         "lines": {
             "no_person": "Nobody in frame. Fix it.",
+            "face_covered": "Something is covering your face. Move it.",
             "cut_off_left": "Cut off on the left. Move.",
             "cut_off_right": "Cut off on the right. Move.",
             "cut_off_top": "Top of the head is cut off. Tilt up.",
@@ -85,6 +88,7 @@ PERSONAS = {
         "settings": {"stability": 0.5, "similarity_boost": 0.75, "style": 0.3, "speed": 1.0},
         "lines": {
             "no_person": "I can't see anyone yet. Step into the frame when you're ready.",
+            "face_covered": "Something's covering your face. Move it out of the way so I can see you.",
             "cut_off_left": "You're slipping out on the left. Come back in a little.",
             "cut_off_right": "You're slipping out on the right. Come back in a little.",
             "cut_off_top": "The top of your head is cut off. Tilt the camera up a touch.",
@@ -111,6 +115,7 @@ PERSONAS = {
         "settings": {"stability": 0.6, "similarity_boost": 0.75, "style": 0.2, "speed": 0.95},
         "lines": {
             "no_person": "Can't see anyone. Whenever you're ready.",
+            "face_covered": "Something's in front of your face. Just move it out of the way.",
             "cut_off_left": "You're drifting off the left side. Ease back in.",
             "cut_off_right": "You're drifting off the right side. Ease back in.",
             "cut_off_top": "Losing the top of your head. Tilt up a bit.",

@@ -12,7 +12,7 @@ def test_every_persona_has_every_line():
 def test_every_warning_has_a_clip_the_personas_can_say():
     face = {"bbox": {"x": 0.3, "y": 0.2, "w": 0.3, "h": 0.3}, "cut_off": False}
     person = {"cut_at_joint": None}
-    cases = [([], [])]
+    cases = [([], []), ([{**face, "covered_by": "hand"}], [])]
     cases += [([{**face, "cut_off": True, "bbox": bbox}], []) for bbox in (
         {"x": 0.0, "y": 0.3, "w": 0.3, "h": 0.3}, {"x": 0.7, "y": 0.3, "w": 0.3, "h": 0.3},
         {"x": 0.3, "y": 0.0, "w": 0.3, "h": 0.3}, {"x": 0.3, "y": 0.7, "w": 0.3, "h": 0.3})]

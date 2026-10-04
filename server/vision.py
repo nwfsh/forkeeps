@@ -71,6 +71,26 @@ JOINT_MARGIN = 0.04
 LOOKING_ROOM = 0.3
 # A face shorter than this fraction of the frame has too few pixels to read expressions from.
 MIN_FACE_SIZE = 0.05
+# Something in front of the face is bad whatever anyone's taste, so it's checked by rule.
+# The face model can't tell: it guesses the hidden features and carries on, so these look
+# for the hand (with the hand model above) or object itself.
+OBJECT_MODEL_PATH = Path(__file__).parent / "models" / "efficientdet_lite0.tflite"
+# Hands and objects are looked for on a copy this size on its longer side.
+BLOCKER_SIZE = 640
+# Only the middle of a face box counts, trimmed by this fraction of its size on each side.
+# The edges are cheeks, ears and hair, where a hand beside the face (a peace sign) belongs.
+FACE_CORE_TRIM = 0.2
+# Share of a hand's 21 points in the face's middle that counts as covering it. Hands beside
+# the face in our photos put at most 10% of their points anywhere in the face box.
+HAND_COVERS = 0.25
+# Share of the face's middle an object's box must cover, and how sure the detector must be.
+# A hand by the face misread as a phone covered at most 5% of the face box, at 0.42.
+OBJECT_COVERS = 0.3
+OBJECT_SURE = 0.5
+# Pose points 0-10 are the nose, eyes, ears and mouth. With no face found, the head is their
+# box grown by this fraction of its size on each side.
+HEAD_POINTS = range(11)
+HEAD_MARGIN = 0.3
 # Every expression score the face model gives (0-1 each), all kept.
 EXPRESSIONS = [
     "_neutral", "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight",
@@ -163,6 +183,7 @@ RED_FLAGS = {
     "face_cut_off": "Face cut off by the frame",
     "face_too_small": "Face too small to measure",
     "several_people": "More than one person",
+    "face_covered": "Something in front of the face",
 }
 
 _landmarker = vision.FaceLandmarker.create_from_options(
@@ -197,6 +218,13 @@ _hand_landmarker = vision.HandLandmarker.create_from_options(
         base_options=BaseOptions(model_asset_path=str(HAND_MODEL_PATH)),
         running_mode=vision.RunningMode.IMAGE,
         num_hands=2,
+    )
+)
+_object_detector = vision.ObjectDetector.create_from_options(
+    vision.ObjectDetectorOptions(
+        base_options=BaseOptions(model_asset_path=str(OBJECT_MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
+        score_threshold=OBJECT_SURE,
     )
 )
 # The landmarker isn't safe to call from several request threads at once.
@@ -472,6 +500,58 @@ def mark_back_if_face_hidden(person: dict) -> None:
         person.pop("looking_room", None)
 
 
+def find_blockers(rgb: np.ndarray) -> dict:
+    """Hands (21 points each) and objects (name and box) that could be in front of a face.
+
+    Everything is in fractions of the image; boxes are (x0, y0, x1, y1).
+    """
+    height, width = rgb.shape[:2]
+    scale = min(1.0, BLOCKER_SIZE / max(height, width))
+    small = cv2.resize(rgb, (round(width * scale), round(height * scale)))
+    image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(small))
+    with _lock:
+        hands = _hand_landmarker.detect(image)
+        objects = _object_detector.detect(image)
+    small_h, small_w = small.shape[:2]
+    found = []
+    for detection in objects.detections:
+        name = detection.categories[0].category_name
+        b = detection.bounding_box
+        if name != "person":
+            found.append({"name": name, "box": (b.origin_x / small_w, b.origin_y / small_h,
+                                                (b.origin_x + b.width) / small_w,
+                                                (b.origin_y + b.height) / small_h)})
+    return {"hands": [[(p.x, p.y) for p in hand] for hand in hands.hand_landmarks], "objects": found}
+
+
+def covered_by(box: tuple, blockers: dict) -> Optional[str]:
+    """What's in front of the middle of a face box (x0, y0, x1, y1): "hand", an object's
+    name, or None."""
+    x0, y0, x1, y1 = box
+    dx, dy = (x1 - x0) * FACE_CORE_TRIM, (y1 - y0) * FACE_CORE_TRIM
+    core = (x0 + dx, y0 + dy, x1 - dx, y1 - dy)
+    for hand in blockers["hands"]:
+        inside = sum(core[0] <= x <= core[2] and core[1] <= y <= core[3] for x, y in hand)
+        if inside / len(hand) >= HAND_COVERS:
+            return "hand"
+    core_area = (core[2] - core[0]) * (core[3] - core[1])
+    for thing in blockers["objects"]:
+        b = thing["box"]
+        shared = (max(0.0, min(b[2], core[2]) - max(b[0], core[0]))
+                  * max(0.0, min(b[3], core[3]) - max(b[1], core[1])))
+        if core_area and shared / core_area >= OBJECT_COVERS:
+            return thing["name"]
+    return None
+
+
+def head_box(points: list) -> tuple:
+    """Where the head is from the pose points, for when the face model found no face."""
+    xs = [points[i][0] for i in HEAD_POINTS]
+    ys = [points[i][1] for i in HEAD_POINTS]
+    dx, dy = (max(xs) - min(xs)) * HEAD_MARGIN, (max(ys) - min(ys)) * HEAD_MARGIN
+    return (min(xs) - dx, min(ys) - dy, max(xs) + dx, max(ys) + dy)
+
+
 def crop_name(points: list[tuple]) -> str:
     """How much of the body the frame shows, by the lowest body part inside it."""
     for name, (a, b) in (("full_body", (LEFT_ANKLE, RIGHT_ANKLE)),
@@ -500,6 +580,7 @@ def joint_at_edge(points: list[tuple]) -> Optional[str]:
 def analyze(rgb: np.ndarray) -> dict:
     height, width = rgb.shape[:2]
     people = find_people(rgb)
+    blockers = find_blockers(rgb)
 
     faces = []
     for found in find_faces(rgb):
@@ -516,6 +597,7 @@ def analyze(rgb: np.ndarray) -> dict:
             "landmarks": found["landmarks"],
             "lighting": lighting(rgb, found["landmarks"]),
             "colour": face_colour(rgb, found["landmarks"]),
+            "covered_by": covered_by(found["box"], blockers),
         }
         if found["matrix"] is not None:
             face["pose"] = head_pose(found["matrix"])
@@ -531,7 +613,12 @@ def analyze(rgb: np.ndarray) -> dict:
         faces.append(face)
 
     if len(people) == 1 and not faces:
-        mark_back_if_face_hidden(people[0])
+        # A face hidden behind a hand isn't a back view.
+        hidden_by = covered_by(head_box(people[0]["points"]), blockers)
+        if hidden_by:
+            people[0]["face_covered_by"] = hidden_by
+        else:
+            mark_back_if_face_hidden(people[0])
     if faces:
         main = max(faces, key=lambda f: f["bbox"]["h"])
         main["hand_over_face"] = hand_over_face(rgb, main["landmarks"], people[0]["points"] if people else None)
@@ -849,7 +936,13 @@ def red_flags(faces: list[dict], people: list[dict]) -> list[str]:
         flags.append("face_too_small")
     if len(faces) > 1 or len(people) > 1:
         flags.append("several_people")
+    if face_covered(faces, people):
+        flags.append("face_covered")
     return flags
+
+
+def face_covered(faces: list[dict], people: list[dict]) -> bool:
+    return any(f.get("covered_by") for f in faces) or any(p.get("face_covered_by") for p in people)
 
 
 def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
@@ -861,6 +954,10 @@ def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
         return [{"code": "no_person", "clip": "no_person", "message": "I can't see anyone"}]
 
     warnings = []
+    # Wrong whatever anyone's taste, so it comes first.
+    if face_covered(faces, people):
+        warnings.append({"code": "face_covered", "clip": "face_covered",
+                         "message": "Something's in front of your face: move it out of the way"})
     cut = [f for f in faces if f["cut_off"]]
     if cut:
         side = edge_side(cut[0]["bbox"])
