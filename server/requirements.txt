@@ -9,6 +9,7 @@ pandas
 jupyter
 supabase
 streamlit
+pytest
 insightface
 onnxruntime
 pillow-heif
