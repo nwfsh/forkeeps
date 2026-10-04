@@ -156,16 +156,19 @@ if len(saved_choices) > len(choices):
 
 
 def save_weights(person: str, picks: int, confidence: float) -> Path:
-    """Write this person's learned weights, so the app can score new photos with them."""
-    WEIGHTS_FOLDER.mkdir(parents=True, exist_ok=True)
+    """Keep this person's learned weights in the database's history, and write the latest to a
+    JSON file the app can score new photos with. Neither changes if the weights haven't."""
     path = WEIGHTS_FOLDER / f"{choices_db.person_key(person)}.json"
-    path.write_text(json.dumps({
-        "person": person,
-        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "picks": picks,
-        "confidence": round(confidence, 2),
-        **ranker.export(),
-    }, indent=1))
+    export = ranker.export()
+    if choices_db.save_weights(person, picks, round(confidence, 2), export) or not path.exists():
+        WEIGHTS_FOLDER.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "person": person,
+            "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "picks": picks,
+            "confidence": round(confidence, 2),
+            **export,
+        }, indent=1))
     return path
 
 
@@ -268,7 +271,17 @@ def show_results() -> None:
                                     "share": st.column_config.NumberColumn(format="percent"),
                                     "weight": st.column_config.NumberColumn(format="%.2f")})
 
-    st.caption(f"Weights saved to {saved.relative_to(REPO).as_posix()}")
+    history = choices_db.weights_history(name)
+    st.caption(f"Weights saved to {saved.relative_to(REPO).as_posix()} and the database "
+               f"({len(history)} version{'' if len(history) == 1 else 's'} so far)")
+    if len(history) > 1:
+        with st.expander("How your results have changed"):
+            st.dataframe(pd.DataFrame([{
+                "saved": h["saved_at"].replace("T", " ")[:16], "picks": h["picks"],
+                "confidence": h["confidence"],
+                "top area": max(h["regions"], key=h["regions"].get) if h.get("regions") else None,
+            } for h in reversed(history)]), hide_index=True,
+                column_config={"confidence": st.column_config.NumberColumn(format="percent")})
 
     scores = ranker.scores()
     ranked = sorted(scores, key=scores.get, reverse=True)

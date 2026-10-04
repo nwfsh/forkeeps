@@ -59,3 +59,12 @@ def test_import_json_matches_the_files_and_is_safe_to_repeat(tmp_path):
     assert choices_db.import_json(tmp_path) == {"salma": 2}
     assert choices_db.import_json(tmp_path) == {"salma": 0}
     assert choices_db.load("salma") == saved
+
+
+def test_weights_keep_history_but_skip_repeats():
+    assert choices_db.save_weights("salma", 10, 0.5, {"weights": {"smile": 1.0}})
+    assert not choices_db.save_weights("salma", 10, 0.5, {"weights": {"smile": 1.0}})
+    assert choices_db.save_weights("salma", 12, 0.6, {"weights": {"smile": 0.8}})
+    history = choices_db.weights_history("salma")
+    assert [(h["picks"], h["weights"]["smile"]) for h in history] == [(10, 1.0), (12, 0.8)]
+    assert choices_db.weights_history("sarah") == []

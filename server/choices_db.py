@@ -1,6 +1,7 @@
-"""Everyone's "pick the better photo" choices, in one SQLite database.
+"""Everyone's "pick the better photo" choices, and the weights learned from them, in one SQLite database.
 
-Replaces the per-person JSON files in preferences/; compare.py reads and writes here.
+Replaces the per-person JSON files in preferences/; compare.py reads and writes here. Each
+time someone's learned weights change, a new row is kept, so their history can be compared.
 
 Run from server/:  python choices_db.py import    copy preferences/*.json in (safe to repeat)
 """
@@ -30,6 +31,17 @@ CREATE TABLE IF NOT EXISTS choices (
     UNIQUE (person, winner, loser, at)
 );
 CREATE INDEX IF NOT EXISTS choices_by_person ON choices (person, id);
+CREATE TABLE IF NOT EXISTS weights (
+    id         INTEGER PRIMARY KEY,
+    person     TEXT NOT NULL,
+    saved_at   TEXT NOT NULL,
+    -- How many usable picks the weights were learned from, and how sure the ranker was.
+    picks      INTEGER NOT NULL,
+    confidence REAL,
+    -- Everything Ranker.export() gives (weights, scaling, priorities, regions), as JSON.
+    data       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS weights_by_person ON weights (person, id);
 """
 
 
@@ -81,6 +93,32 @@ def clear(name: str) -> int:
     """Delete all of someone's choices. Returns how many there were."""
     with closing(connect()) as conn, conn:
         return conn.execute("DELETE FROM choices WHERE person = ?", (person_key(name),)).rowcount
+
+
+def save_weights(name: str, picks: int, confidence: float, data: dict) -> bool:
+    """Keep a new row of learned weights, unless they're the same as the person's latest.
+
+    Opening the results again without new picks learns the same weights; skipping those keeps
+    the history meaningful and the database file unchanged. Returns whether a row was added.
+    """
+    text = json.dumps(data, sort_keys=True)
+    with closing(connect()) as conn, conn:
+        latest = conn.execute("SELECT picks, data FROM weights WHERE person = ? ORDER BY id DESC LIMIT 1",
+                              (person_key(name),)).fetchone()
+        if latest and latest["picks"] == picks and latest["data"] == text:
+            return False
+        conn.execute("INSERT INTO weights (person, saved_at, picks, confidence, data) VALUES (?, ?, ?, ?, ?)",
+                     (person_key(name), datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                      picks, confidence, text))
+        return True
+
+
+def weights_history(name: str) -> list[dict]:
+    """Every saved set of someone's weights, oldest first, with the data decoded."""
+    with closing(connect()) as conn:
+        rows = conn.execute("SELECT * FROM weights WHERE person = ? ORDER BY id", (person_key(name),))
+        return [{"saved_at": r["saved_at"], "picks": r["picks"], "confidence": r["confidence"],
+                 **json.loads(r["data"])} for r in rows]
 
 
 def import_json(folder: Path = PREFERENCES) -> dict[str, int]:
