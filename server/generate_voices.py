@@ -4,7 +4,8 @@ Run from server/:  python generate_voices.py            (only lines that are new
                    python generate_voices.py hype       (just one persona)
                    python generate_voices.py --voices   (list the voices your account can use)
 
-Needs ELEVENLABS_API_KEY in the environment or in server/.env.
+Needs ELEVENLABS_API_KEY in the environment or in server/.env. The clips in voices/ are
+committed, so only whoever changes a line or a voice needs a key; everyone else just pulls.
 """
 import hashlib
 import json

@@ -225,9 +225,6 @@ __marimo__/
 # Training photos stay out of git
 /data
 
-# Recorded coach voices; make them with server/generate_voices.py
-/server/voices/
-
 # JavaScript dependencies and Expo state, wherever they end up
 node_modules/
 .expo/
