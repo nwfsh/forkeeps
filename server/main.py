@@ -9,12 +9,14 @@ from pydantic import BaseModel
 import angles
 import choices_db
 import comparing
+import makeup
 import personas
 import ranker
 import recognize
 import retrain
 import shots
 import snapshots
+import subject
 import vision
 
 # Camera frames are small and faces in them are big, so the detector can work at a small
@@ -45,7 +47,11 @@ def analyze(image: UploadFile = File(...), person: Optional[str] = None):
         raise HTTPException(status_code=400, detail=str(e))
     result = vision.analyze(rgb)
     add_names(rgb, result["faces"])
+    # With several people in the frame, judge only the person whose face it is (if it's been learned).
+    result = subject.focus(result, rgb, person)
     result["shot"] = shots.judge(result, shots.load_model(person))
+    # Makeup reminders against the person's reference look, if they've set one; not part of the score.
+    result["makeup"] = makeup.check(result, makeup.load(person)) if person else []
     result["ms"] = round((time.perf_counter() - start) * 1000)
     return finite(result)
 
@@ -197,6 +203,41 @@ def retrain_model(person: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {**summary, "status": retrain.status(person)}
+
+
+@app.post("/faces/{person}")
+def learn_face(person: str, images: list[UploadFile] = File(...)):
+    """Learn `person`'s face from photos of them (the app sends snapshots of the onboarding
+    recording), so they can be told apart from other people in the frame."""
+    try:
+        used = subject.enroll(person, [vision.decode_image(image.file.read()) for image in images])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"person": person, "photos_used": used}
+
+
+@app.post("/makeup/{person}")
+def set_makeup_look(person: str, image: UploadFile = File(...)):
+    """Keep a photo's lip and cheek colour as `person`'s makeup look; frames are checked against it."""
+    try:
+        result = vision.analyze(vision.decode_image(image.file.read()))
+        return finite(makeup.save(person, makeup.reference_from(result)))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/makeup/{person}")
+def get_makeup_look(person: str):
+    look = makeup.load(person)
+    if not look:
+        raise HTTPException(status_code=404, detail="No makeup look set")
+    return look
+
+
+@app.delete("/makeup/{person}")
+def clear_makeup_look(person: str):
+    makeup.clear(person)
+    return {"cleared": True}
 
 
 @app.get("/personas")

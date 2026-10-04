@@ -139,10 +139,10 @@ COLOUR_POINTS = {
     "under_cheekbone": (147, 376),
     "jawline": (136, 365),
     "under_eyes": (230, 450),
-    "lips": (12, 15),
 }
-# Lips are thin, so they're sampled over a smaller circle than the rest of the face.
-LIP_PATCH = 0.025
+# The lips' outer outline, in order round the mouth. Lip colour is read from inside it with the
+# inner mouth (INNER_LIPS) cut out, so teeth and the dark of an open mouth don't water it down.
+OUTER_LIPS = (61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146)
 # Face points for face shape, as (image-left, image-right) pairs where paired. Checked by
 # drawing them on our own photos.
 FACE_TOP, CHIN_BOTTOM = 10, 152
@@ -821,6 +821,14 @@ def skin_detail(rgb: np.ndarray, pts: np.ndarray, face_length: float, facing: bo
     return {"shine": round(float(shine.sum() / face.sum()), 4), "under_chin_fold": fold}
 
 
+def lip_mask(points: np.ndarray, height: int, width: int) -> np.ndarray:
+    """The lips themselves: inside the outer outline and outside the inner mouth."""
+    mask = np.zeros((height, width), np.uint8)
+    cv2.fillPoly(mask, [points[list(OUTER_LIPS)].astype(np.int32)], 1)
+    cv2.fillPoly(mask, [points[list(INNER_LIPS)].astype(np.int32)], 0)
+    return mask
+
+
 def face_colour(rgb: np.ndarray, landmarks: list) -> dict:
     """Average colour of each face region, and comparisons that show makeup and contour.
 
@@ -834,12 +842,17 @@ def face_colour(rgb: np.ndarray, landmarks: list) -> dict:
     points = np.array([[x * width, y * height] for x, y, _ in landmarks], dtype=np.float32)
     face_height = points[:, 1].max() - points[:, 1].min()
 
-    regions = {}
+    masks = {}
     for region, indices in COLOUR_POINTS.items():
-        radius = max(2, int(face_height * (LIP_PATCH if region == "lips" else LIGHT_PATCH)))
+        radius = max(2, int(face_height * LIGHT_PATCH))
         mask = np.zeros((height, width), np.uint8)
         for i in indices:
             cv2.circle(mask, (int(points[i][0]), int(points[i][1])), radius, 1, -1)
+        masks[region] = mask
+    masks["lips"] = lip_mask(points, height, width)
+
+    regions = {}
+    for region, mask in masks.items():
         inside = mask.astype(bool)
         if not inside.any():
             return {}

@@ -62,6 +62,11 @@ export default function PhotosScreen() {
               Preview screens
             </ThemedText>
           </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/makeup')} hitSlop={8}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Makeup look
+            </ThemedText>
+          </Pressable>
         </View>
         {photos.length === 0 ? (
           <ThemedText style={styles.empty}>

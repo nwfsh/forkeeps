@@ -1,13 +1,13 @@
 {
  "person": "avery",
- "updated": "2026-10-04T12:11:29+00:00",
- "picks": 334,
+ "updated": "2026-10-04T13:01:18+00:00",
+ "picks": 349,
  "confidence": 1.0,
  "source": "review",
  "regions": {
-  "Eyes": 0.06150474703052924,
-  "Mouth": 0.2882969690712288,
-  "Head angle": 0.6501982838982421,
+  "Eyes": 0.05510734872387811,
+  "Mouth": 0.30065300126459105,
+  "Head angle": 0.6442396500115309,
   "Photo quality": 0.0,
   "Framing": 0.0,
   "Body angle": 0.0,
@@ -32,77 +32,77 @@
    "feature": "chin_up",
    "region": "Head angle",
    "prefers": "Chin down",
-   "share": 0.46290556690243284,
-   "weight": -1.2392303070659598
+   "share": 0.46296145451771853,
+   "weight": -1.2048488961195494
   },
   {
    "feature": "teeth_shown",
    "region": "Mouth",
    "prefers": "Teeth showing, less of it",
-   "share": 0.19742383520513712,
-   "weight": -0.5285172990260613
+   "share": 0.22628010886810312,
+   "weight": -0.5888899318142073
   },
   {
    "feature": "chin_up_curve",
    "region": "Head angle",
    "prefers": "Chin angle sweet spot: one extreme or the other",
-   "share": 0.17372016783957814,
-   "weight": 0.4650609375384011
+   "share": 0.16174936892376623,
+   "weight": 0.4209498365233231
   },
   {
    "feature": "left_side",
    "region": "Head angle",
    "prefers": "Your left side toward the camera",
-   "share": 0.08545347207697798,
-   "weight": 0.2287648713114867
+   "share": 0.05943573109353164,
+   "weight": 0.15468042598211437
   },
   {
    "feature": "eye_contact",
    "region": "Eyes",
    "prefers": "Looking at the camera, less of it",
-   "share": 0.04647233797652658,
-   "weight": -0.12440967181728103
+   "share": 0.044903664028729195,
+   "weight": -0.11686098164067973
   },
   {
    "feature": "smile",
    "region": "Mouth",
    "prefers": "Smiling, less of it",
-   "share": 0.033778470847123425,
-   "weight": -0.09042730913824173
+   "share": 0.033193278586842116,
+   "weight": -0.08638491320105092
   },
   {
    "feature": "left_side_curve",
    "region": "Head angle",
    "prefers": "Face turn sweet spot: a best angle in between",
-   "share": 0.0002461491522240446,
-   "weight": -0.0006589583519934665
+   "share": 0.011476393981308997,
+   "weight": -0.029867109853060098
   }
  ],
  "weights": {
-  "eye_contact": -0.12440967181728103,
-  "smile": -0.09042730913824173,
-  "teeth_shown": -0.5285172990260613,
-  "chin_up": -1.2392303070659598,
-  "left_side": 0.2287648713114867,
-  "chin_up_curve": 0.4650609375384011,
-  "left_side_curve": -0.0006589583519934665
+  "eye_contact": -0.11686098164067973,
+  "smile": -0.08638491320105092,
+  "teeth_shown": -0.5888899318142073,
+  "chin_up": -1.2048488961195494,
+  "left_side": 0.15468042598211437,
+  "chin_up_curve": 0.4209498365233231,
+  "left_side_curve": -0.029867109853060098
  },
  "mean": {
-  "eye_contact": 0.5389775280898875,
-  "smile": 0.19516483516483518,
-  "teeth_shown": 0.13305952380952385,
-  "chin_up": -0.04609279609279609,
-  "left_side": 0.010769230769230774,
-  "chin_up_curve": 0.030661524894858214,
-  "left_side_curve": 0.03769339302672638
+  "eye_contact": 0.5479811320754717,
+  "smile": 0.19148148148148156,
+  "teeth_shown": 0.12574747474747477,
+  "chin_up": -0.0638888888888889,
+  "left_side": 0.008281893004115233,
+  "chin_up_curve": 0.03387823502514859,
+  "left_side_curve": 0.035727697759487906
  },
  "std": {
-  "eye_contact": 0.19254242068873076,
-  "smile": 0.303482072672776,
-  "teeth_shown": 0.17751434222341397,
-  "chin_up": 0.16892891713145544,
-  "left_side": 0.19384895329963844,
-  "chin_up_curve": 0.02892515584199044,
-  "left_side_curve": 0.061070721522468084
+  "eye_contact": 0.18321273237517852,
+  "smile": 0.2988052902960662,
+  "teeth_shown": 0.1754276358585385,
+  "chin_up": 0.1726164676434199,
+  "left_side": 0.1888361935852242,
+  "chin_up_curve": 0.03172363845387723,
+  "left_side_curve": 0.05921953307962776
  }
 }

@@ -9,9 +9,10 @@ import { FaceOverlay } from '@/components/face-overlay';
 import { usePhotos } from '@/components/photos-provider';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
+import { useMakeupReminder } from '@/hooks/use-makeup-reminder';
 import { useVoiceCoach } from '@/hooks/use-voice-coach';
 import { BURST_SIZE, rankBurst } from '@/lib/burst';
-import { redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
+import { mainRedFlag, redFlagMessage, SERVER_URL, type Analysis } from '@/lib/server';
 import { GOOD_CLIP } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
@@ -46,21 +47,28 @@ export default function CameraScreen() {
   const busy = useRef(false);
   // Set below once takeBurst exists; the frame loop calls it with every analysis.
   const onFrameRef = useRef<(frame: Analysis) => void>(() => {});
+  const makeup = useMakeupReminder();
 
   const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(cameraRef, ready && isFocused, (frame) =>
     onFrameRef.current(frame)
   );
   // The line for the tip on screen: first why the photo can't be judged at all (nobody there, face
-  // cut off or covered), then a framing or lighting warning, then the change the profile's taste
-  // model wants, then praise when there's nothing left to fix.
+  // cut off or covered), then a makeup reminder against their makeup look (colour that's off is
+  // the first thing people notice), then a framing or lighting warning, then the change the
+  // profile's taste model wants, then praise when there's nothing left to fix.
   const instruction = analysis?.shot?.instruction ?? null;
-  const redFlag = analysis?.red_flags?.[0];
-  // Red flags are spoken by their code; ones a voice has no line for stay quiet (useVoiceCoach
-  // skips clips it doesn't have), rather than saying "looks good".
+  const redFlag = analysis ? mainRedFlag(analysis) : null;
+  // Red flags are spoken by their own line; one a voice has no line for stays quiet
+  // (useVoiceCoach skips clips it doesn't have), rather than saying "looks good".
   const clip =
     !isFocused || error || !analysis
       ? null
-      : (redFlag ?? analysis.warnings[0]?.clip ?? instruction?.clip ?? GOOD_CLIP);
+      : redFlag
+        ? redFlag.clip
+        : (makeup.tip?.clip ??
+        analysis.warnings[0]?.clip ??
+        instruction?.clip ??
+        GOOD_CLIP);
   const voice = useVoiceCoach(clip);
 
   // iOS reports lens names like "Back Ultra Wide Camera"; only the back camera has one.
@@ -125,6 +133,7 @@ export default function CameraScreen() {
 
   /** Counts perfect frames in a row and fires a burst once there are enough. */
   function onFrame(frame: Analysis) {
+    makeup.onFrame(frame);
     perfectStreak.current = frame.shot?.perfect ? perfectStreak.current + 1 : 0;
     const rested = Date.now() - lastAutoAt.current > AUTO_COOLDOWN_MS;
     if (auto && !busy.current && rested && perfectStreak.current >= STEADY_FRAMES) {
@@ -160,8 +169,8 @@ export default function CameraScreen() {
   const tip = error
     ? `Can't reach ${SERVER_URL} (${error})`
     : redFlag
-      ? redFlagMessage(redFlag)
-      : (analysis?.warnings[0]?.message ?? instruction?.message);
+      ? redFlagMessage(redFlag.flag, analysis?.subject)
+      : (makeup.tip?.message ?? analysis?.warnings[0]?.message ?? instruction?.message);
 
   return (
     <View

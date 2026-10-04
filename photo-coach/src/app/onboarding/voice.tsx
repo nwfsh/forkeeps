@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useOnboarding } from '@/components/onboarding-provider';
 import { GradientBackground, INK, MUTED, PillButton } from '@/components/onboarding-style';
 import {
   downloadClip,
@@ -21,7 +20,6 @@ import {
  * choice is saved where the camera's voice coach reads it, and can still be changed there.
  */
 export default function VoiceScreen() {
-  const { finish } = useOnboarding();
   const insets = useSafeAreaInsets();
   const [personas, setPersonas] = useState<Persona[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +77,7 @@ export default function VoiceScreen() {
   function done() {
     player.pause();
     saveVoiceChoice(choice);
-    finish();
+    router.push('/onboarding/makeup');
   }
 
   const options: { id: string | null; name: string; description: string; persona?: Persona }[] = [
@@ -172,7 +170,7 @@ export default function VoiceScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-        <PillButton label="Start coaching" onPress={done} />
+        <PillButton label="Continue" onPress={done} />
       </View>
     </View>
   );

@@ -34,6 +34,25 @@ export type Shot = {
   instruction?: { code: string; clip: string; message: string; gain: number } | null;
 };
 
+export type MakeupTip = {
+  code: 'lips_faded' | 'blush_faded';
+  clip: string;
+  message: string;
+  /** This frame's colour as a share of the look's. */
+  strength: number;
+};
+
+/** The lip and cheek colour read from the person's favourite makeup photo. */
+export type MakeupLook = {
+  lips_hex: string;
+  cheeks_hex: string;
+  skin_hex: string;
+  lip_colour: number;
+  blush: number;
+  /** False when the photo had too little blush for cheeks to be worth checking. */
+  checks_blush: boolean;
+};
+
 export type Analysis = {
   width: number;
   height: number;
@@ -42,6 +61,14 @@ export type Analysis = {
   warnings: Warning[];
   /** Why the photo can't be judged at all (server/vision.py RED_FLAGS), e.g. "no_person". */
   red_flags: string[];
+  /** Lips or cheeks faded against the person's makeup look (server/makeup.py), if they set one. */
+  makeup?: MakeupTip[];
+  /**
+   * With more than one person in the frame (server/subject.py): "found" when the analysis is
+   * narrowed to this profile's face, "unknown" when none of the faces is theirs, "not_enrolled"
+   * when their face hasn't been learned yet. Null with one person or none.
+   */
+  subject?: 'found' | 'unknown' | 'not_enrolled' | null;
   ms: number;
   shot?: Shot;
 };
@@ -70,15 +97,45 @@ export function currentPerson() {
   return person;
 }
 
+// Which red flag to tell them about when there are several, most useful first: a hand over the
+// face usually hides the face from the detector too ("no_face"), and the hand is the thing to fix.
+const RED_FLAG_ORDER = [
+  'face_covered',
+  'no_person',
+  'several_people',
+  'face_cut_off',
+  'no_face',
+  'face_too_small',
+];
+
+/**
+ * The red flag to tell them about, and the voice line for it: its own code, except a face cut
+ * off by the edge, which is said by the side it's cut on (the cut_off warning's clip).
+ */
+export function mainRedFlag(analysis: Analysis): { flag: string; clip: string | null } | null {
+  const flags = analysis.red_flags ?? [];
+  const flag = RED_FLAG_ORDER.find((f) => flags.includes(f)) ?? flags[0];
+  if (!flag) return null;
+  const clip =
+    flag === 'face_cut_off'
+      ? (analysis.warnings.find((w) => w.code === 'cut_off')?.clip ?? null)
+      : flag;
+  return { flag, clip };
+}
+
 /** What to tell the person about a red flag, by name, e.g. "Avery isn't in the frame". */
-export function redFlagMessage(flag: string): string {
+export function redFlagMessage(flag: string, subject?: Analysis['subject']): string {
   const name = person ? person.charAt(0).toUpperCase() + person.slice(1) : 'You';
   const messages: Record<string, string> = {
     no_person: `${name} isn't in the frame`,
     no_face: `${name}'s face isn't in view`,
     face_cut_off: `${name} isn't fully in the frame`,
     face_too_small: `Get closer: ${name}'s face is too small to read`,
-    several_people: `Someone else is in the frame`,
+    // Other people are fine once the person's face is learned and found among them.
+    several_people:
+      subject === 'not_enrolled'
+        ? `Can't tell which one is ${name} yet: record in onboarding to teach it your face`
+        : `Can't tell which one is ${name}`,
     face_covered: `Something is covering ${name}'s face`,
   };
   return messages[flag] ?? `Can't see ${name} clearly`;
@@ -272,4 +329,35 @@ export async function analyzeFrame(uri: string, signal?: AbortSignal): Promise<A
   });
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
   return res.json();
+}
+
+/** Reads a photo of the person's favourite makeup look and keeps it to check frames against. */
+export async function saveMakeupLook(uri: string): Promise<MakeupLook> {
+  const body = new FormData();
+  body.append('image', new File(uri));
+  return json(
+    await fetch(`${SERVER_URL}/makeup/${encodeURIComponent(person)}`, { method: 'POST', body }),
+  );
+}
+
+/** The person's makeup look, or null if they haven't set one. */
+export async function loadMakeupLook(): Promise<MakeupLook | null> {
+  const res = await fetch(`${SERVER_URL}/makeup/${encodeURIComponent(person)}`);
+  if (res.status === 404) return null;
+  return json(res);
+}
+
+export async function clearMakeupLook(): Promise<void> {
+  await json(
+    await fetch(`${SERVER_URL}/makeup/${encodeURIComponent(person)}`, { method: 'DELETE' }),
+  );
+}
+
+/** Teaches the server this profile's face from photos of them, so they can be picked out of a group. */
+export async function learnFace(uris: string[]): Promise<void> {
+  const body = new FormData();
+  for (const uri of uris) body.append('images', new File(uri));
+  await json(
+    await fetch(`${SERVER_URL}/faces/${encodeURIComponent(person)}`, { method: 'POST', body }),
+  );
 }

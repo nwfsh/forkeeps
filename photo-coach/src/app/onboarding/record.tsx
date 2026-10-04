@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useOnboarding, type Snapshot } from '@/components/onboarding-provider';
 import { INK, MUTED, StepDots } from '@/components/onboarding-style';
 import { snapshot } from '@/hooks/use-frame-analysis';
-import { analyzeFrame, pickSnapshots } from '@/lib/server';
+import { analyzeFrame, learnFace, pickSnapshots } from '@/lib/server';
 
 const RECORD_SECONDS = 20;
 // A 3-2-1 before recording, so they're settled by the time frames are kept.
@@ -17,6 +17,8 @@ const COUNTDOWN_SECONDS = 3;
 const TICK_MS = 250;
 // Shortest gap between frames while recording; taking one takes a few hundred ms on top.
 const FRAME_GAP_MS = 150;
+// Snapshots sent to teach the server this person's face, so they can be picked out of a group.
+const FACE_PHOTOS = 8;
 // Frames sent to the server at once after recording.
 const UPLOADS_AT_ONCE = 4;
 
@@ -190,7 +192,12 @@ export default function RecordScreen() {
         return;
       }
       const byId = new Map(taken.map((frame) => [frame.id, frame]));
-      setSnapshots(snapshots.flatMap((id) => byId.get(id) ?? []));
+      const picked = snapshots.flatMap((id) => byId.get(id) ?? []);
+      setSnapshots(picked);
+      // In the background: it only matters later, with other people in the frame.
+      learnFace(picked.slice(0, FACE_PHOTOS).map((frame) => frame.uri)).catch((e) =>
+        console.warn("Couldn't learn the face:", e),
+      );
       router.push('/onboarding/compare');
       setPhase('intro');
     } catch (e) {

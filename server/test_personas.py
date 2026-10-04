@@ -1,4 +1,5 @@
 """Run from server/:  python -m pytest test_personas.py"""
+import makeup
 import personas
 import shots
 import vision
@@ -12,6 +13,10 @@ def test_every_persona_has_every_line():
 
 # Clips spoken for taste instructions rather than warnings (see shots.INSTRUCTIONS).
 TASTE_CLIPS = {clip for pair in shots.INSTRUCTIONS.values() for clip, _ in pair}
+# Clips for makeup reminders (see makeup.CHECKS).
+MAKEUP_CLIPS = {clip for _, _, clip, _ in makeup.CHECKS}
+# Red flags with no framing warning of their own, which the app says by their code.
+RED_FLAG_CLIPS = {"no_face", "face_too_small", "several_people"}
 
 
 def test_every_warning_has_a_clip_the_personas_can_say():
@@ -34,7 +39,7 @@ def test_every_warning_has_a_clip_the_personas_can_say():
         warnings = vision.framing_warnings(faces, people)
         assert warnings
         said.update(w["clip"] for w in warnings)
-    assert said == set(personas.CLIPS) - {"looks_good"} - TASTE_CLIPS
+    assert said == set(personas.CLIPS) - {"looks_good"} - TASTE_CLIPS - MAKEUP_CLIPS - RED_FLAG_CLIPS
 
 
 def test_every_taste_instruction_has_a_clip():
@@ -49,3 +54,7 @@ def test_recorded_lists_only_clips_that_exist(tmp_path, monkeypatch):
     path.write_bytes(b"mp3")
     assert personas.recorded("hype") == ["too_close"]
     assert personas.recorded("strict") == []
+
+
+def test_every_red_flag_has_a_clip():
+    assert set(vision.RED_FLAGS) - {"face_cut_off"} <= set(personas.CLIPS)
