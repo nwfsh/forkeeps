@@ -2,7 +2,7 @@
 import random
 
 import angles
-from ranker import FEATURES
+from ranker import ALL_FEATURES
 
 
 def frame(i: int, yaw: float, pitch: float = 0.0, roll: float = 0.0, eyes: float = 0.9) -> dict:
@@ -52,9 +52,9 @@ def test_frames_without_one_face_are_skipped():
 
 def test_angle_features_keep_only_head_angle():
     f = angles.angle_features(frame(0, -45, -9, 6)["analysis"])
-    assert set(f) == set(FEATURES)
+    assert set(f) == set(ALL_FEATURES)
     assert f["left_side"] == 0.5 and f["chin_up"] == 0.1
-    assert all(f[name] is None for name in FEATURES if name not in angles.ANGLE_FEATURES)
+    assert all(f[name] is None for name in ALL_FEATURES if name not in angles.ANGLE_FEATURES)
     assert angles.angle_features({"faces": [], "people": []}) is None
 
 

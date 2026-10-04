@@ -166,8 +166,9 @@ RIGHT_GUESSES = 12
 # consistent person's picks are hard to guess.
 RESAMPLES = 100
 # Share of resamples agreeing on the top feature from which it counts as clear or likely.
-# Simulated random pickers reached CLEAR about 10% of the time and LIKELY about 20%.
-CLEAR = 0.9
+# With the 5 active features plus angle curves, simulated random pickers reach 0.95 about
+# 5% of the time (0.9 let through 45%), and real tastes about half the time.
+CLEAR = 0.95
 LIKELY = 0.7
 
 

@@ -10,7 +10,7 @@ from typing import Optional
 import numpy as np
 from sklearn.cluster import KMeans
 
-from ranker import FEATURES, photo_features
+from ranker import ALL_FEATURES, photo_features
 
 # The ranker features that describe head angle and nothing else.
 ANGLE_FEATURES = ("left_side", "chin_up", "head_straight", "chin_level")
@@ -31,7 +31,7 @@ def angle_features(result: dict) -> Optional[dict]:
     features = photo_features(result)
     if all(features[name] is None for name in ANGLE_FEATURES):
         return None
-    return {name: features[name] if name in ANGLE_FEATURES else None for name in FEATURES}
+    return {name: features[name] if name in ANGLE_FEATURES else None for name in ALL_FEATURES}
 
 
 def pose(result: dict) -> Optional[dict]:
