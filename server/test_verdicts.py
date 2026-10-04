@@ -78,3 +78,22 @@ def test_endpoint_accepts_photos_without_analysis_and_rejects_bad_input():
     assert client.post("/verdicts", json={"person": "me", "photo": "1", "verdict": "maybe"}).status_code == 400
     assert client.post("/verdicts", json={"person": "me", "photo": "1", "verdict": "keep",
                                           "analysis": {"nonsense": 1}}).status_code == 400
+
+
+def test_angle_verdicts_keep_only_head_angle():
+    client = TestClient(main.app)
+    analysis = {**ANALYSIS, "faces": [{**ANALYSIS["faces"][0], "pose": {"yaw": -45.0, "pitch": 0.0, "roll": 0.0}}]}
+    res = client.post("/verdicts", json={"person": "me", "photo": "angle-1-3", "verdict": "keep",
+                                         "analysis": analysis, "kind": "angle"})
+    assert res.json() == {"saved": True, "measured": True}
+    [verdict] = choices_db.load_verdicts("me")
+    assert verdict["features"]["left_side"] == 0.5
+    assert verdict["features"]["smile"] is None and verdict["features"]["bright_face"] is None
+
+
+def test_cluster_endpoint():
+    from test_angles import turning_head
+    client = TestClient(main.app)
+    res = client.post("/angles/cluster", json={"frames": turning_head()}).json()
+    assert len(res["clusters"]) == 3 and res["skipped"] == 0
+    assert client.post("/angles/cluster", json={"frames": [{"nope": 1}]}).status_code == 400

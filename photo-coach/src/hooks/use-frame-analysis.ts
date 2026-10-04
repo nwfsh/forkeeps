@@ -11,8 +11,13 @@ const MIN_INTERVAL_MS = 150;
 /** Longest a snapshot or an upload may take before the loop gives up on it and tries again. */
 const STEP_TIMEOUT_MS = 5000;
 
+/** Pause between burst shots; each takePictureAsync takes a few hundred ms on top. */
+const BURST_GAP_MS = 80;
+
 export type FrameAnalysisState = {
   analysis: Analysis | null;
+  /** The small frame `analysis` describes, kept on the phone in the cache. */
+  frameUri: string | null;
   error: string | null;
   /** Analyses per second over the last few frames. */
   fps: number;
@@ -24,9 +29,19 @@ export type FrameAnalysisState = {
  * `capture` takes a real full-quality photo, waiting for any in-flight
  * snapshot first, since the camera can only take one picture at a time.
  */
-export function useFrameAnalysis(cameraRef: RefObject<CameraView | null>, enabled: boolean) {
-  const [state, setState] = useState<FrameAnalysisState>({ analysis: null, error: null, fps: 0 });
+export function useFrameAnalysis(
+  cameraRef: RefObject<CameraView | null>,
+  enabled: boolean,
+  /** Called with every new analysis and the frame it describes, e.g. to auto-capture. */
+  onFrame?: (analysis: Analysis, frameUri: string) => void
+) {
+  const [state, setState] = useState<FrameAnalysisState>({ analysis: null, frameUri: null, error: null, fps: 0 });
   const timestamps = useRef<number[]>([]);
+  // The latest callback, so the loop doesn't restart whenever the screen re-renders.
+  const onFrameRef = useRef(onFrame);
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+  });
   const busyRef = useRef(false);
   const snapshotRef = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -40,6 +55,30 @@ export function useFrameAnalysis(cameraRef: RefObject<CameraView | null>, enable
       busyRef.current = false;
     }
   }, [cameraRef]);
+
+  /**
+   * Takes `count` full-quality photos back to back (only the first makes a shutter sound),
+   * pausing the analysis loop throughout. Returns their URIs; fewer if the camera goes away.
+   */
+  const captureBurst = useCallback(
+    async (count: number) => {
+      if (!cameraRef.current || busyRef.current) return [];
+      busyRef.current = true;
+      const uris: string[] = [];
+      try {
+        await snapshotRef.current;
+        for (let i = 0; i < count && cameraRef.current; i++) {
+          const photo = await cameraRef.current.takePictureAsync({ quality: 0.9, shutterSound: i === 0 });
+          uris.push(photo.uri);
+          if (i < count - 1) await sleep(BURST_GAP_MS);
+        }
+        return uris;
+      } finally {
+        busyRef.current = false;
+      }
+    },
+    [cameraRef]
+  );
 
   useEffect(() => {
     if (!enabled) return;
@@ -77,7 +116,8 @@ export function useFrameAnalysis(cameraRef: RefObject<CameraView | null>, enable
             timestamps.current = [...timestamps.current.slice(-4), now];
             const span = (now - timestamps.current[0]) / 1000;
             const fps = span > 0 ? (timestamps.current.length - 1) / span : 0;
-            setState({ analysis, error: null, fps });
+            setState({ analysis, frameUri: uri, error: null, fps });
+            onFrameRef.current?.(analysis, uri);
           }
         } catch (e) {
           if (cancelled) return;
@@ -96,14 +136,17 @@ export function useFrameAnalysis(cameraRef: RefObject<CameraView | null>, enable
     };
   }, [cameraRef, enabled]);
 
-  return { ...state, capture };
+  return { ...state, capture, captureBurst };
 }
 
 async function snapshot(camera: CameraView): Promise<string> {
   const photo = await camera.takePictureAsync({ quality: 0.5, shutterSound: false });
-  const rendered = await ImageManipulator.manipulate(photo.uri)
-    .resize({ width: FRAME_WIDTH, height: null })
-    .renderAsync();
+  return shrink(photo.uri);
+}
+
+/** A small copy of a photo, the size the server analyses frames at. */
+export async function shrink(uri: string): Promise<string> {
+  const rendered = await ImageManipulator.manipulate(uri).resize({ width: FRAME_WIDTH, height: null }).renderAsync();
   const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
   return saved.uri;
 }

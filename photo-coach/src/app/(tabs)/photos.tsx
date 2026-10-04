@@ -26,11 +26,13 @@ const COLUMNS = 3;
 const GAP = 2;
 
 export default function PhotosScreen() {
-  const { photos } = usePhotos();
+  const { photos: all } = usePhotos();
+  // Burst shots that weren't the best wait in review; they join the grid once kept.
+  const photos = all.filter((p) => !p.alternate || p.kept);
   const { width } = useWindowDimensions();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const size = (width - GAP * (COLUMNS - 1)) / COLUMNS;
-  const toReview = photos.filter((p) => !p.kept).length;
+  const toReview = all.filter((p) => !p.kept).length;
 
   return (
     <ThemedView style={styles.fill}>

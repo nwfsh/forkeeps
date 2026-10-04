@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { Image } from 'expo-image';
 import { router, useIsFocused } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,16 +10,24 @@ import { usePhotos } from '@/components/photos-provider';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
 import { useVoiceCoach } from '@/hooks/use-voice-coach';
-import { SERVER_URL } from '@/lib/server';
+import { BURST_SIZE, rankBurst } from '@/lib/burst';
+import { SERVER_URL, type Analysis } from '@/lib/server';
 import { GOOD_CLIP } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
+// Auto-capture fires after this many perfect frames in a row (about half a second), then
+// waits AUTO_COOLDOWN_MS before it can fire again, so one good moment gives one burst.
+const STEADY_FRAMES = 2;
+const AUTO_COOLDOWN_MS = 4000;
+const NOTICE_MS = 3000;
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const isFocused = useIsFocused();
   const cameraRef = useRef<CameraView>(null);
-  const { photos, add } = usePhotos();
+  const { photos: all, add } = usePhotos();
+  // As on the Photos tab: burst alternates stay out of sight until kept in review.
+  const photos = all.filter((p) => !p.alternate || p.kept);
 
   const [ready, setReady] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
@@ -28,8 +36,20 @@ export default function CameraScreen() {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
   const [capturing, setCapturing] = useState(false);
   const [flash] = useState(() => new Animated.Value(0));
+  // Burst: the shutter takes BURST_SIZE shots and keeps the best. Auto: fires a burst by itself
+  // once the shot has been perfect for STEADY_FRAMES frames in a row.
+  const [burstMode, setBurstMode] = useState(false);
+  const [auto, setAuto] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const perfectStreak = useRef(0);
+  const lastAutoAt = useRef(0);
+  const busy = useRef(false);
+  // Set below once takeBurst exists; the frame loop calls it with every analysis.
+  const onFrameRef = useRef<(frame: Analysis) => void>(() => {});
 
-  const { analysis, error, fps, capture } = useFrameAnalysis(cameraRef, ready && isFocused);
+  const { analysis, error, fps, capture, captureBurst } = useFrameAnalysis(cameraRef, ready && isFocused, (frame) =>
+    onFrameRef.current(frame)
+  );
   // The line for the tip on screen, or praise when there's nothing to fix.
   const clip = !isFocused || error || !analysis ? null : (analysis.warnings[0]?.clip ?? GOOD_CLIP);
   const voice = useVoiceCoach(clip);
@@ -37,6 +57,82 @@ export default function CameraScreen() {
   // iOS reports lens names like "Back Ultra Wide Camera"; only the back camera has one.
   const ultraWideLens = lenses.find((l) => /ultra\s*wide/i.test(l));
   const selectedLens = facing === 'back' && ultraWide && ultraWideLens ? ultraWideLens : WIDE_LENS;
+
+  function showFlash() {
+    flash.setValue(1);
+    Animated.timing(flash, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+  }
+
+  function showNotice(text: string) {
+    setNotice(text);
+    setTimeout(() => setNotice((current) => (current === text ? null : current)), NOTICE_MS);
+  }
+
+  async function takePhoto() {
+    if (burstMode) return takeBurst('shutter');
+    if (busy.current) return;
+    busy.current = true;
+    setCapturing(true);
+    // Remember what the coach saw at the moment of the press, not after the capture delay.
+    const seen = analysis;
+    showFlash();
+    try {
+      const photo = await capture();
+      if (photo) add(photo.uri, seen);
+    } catch (e) {
+      Alert.alert('Photo failed', e instanceof Error ? e.message : String(e));
+    } finally {
+      busy.current = false;
+      setCapturing(false);
+    }
+  }
+
+  /** Takes a burst, keeps the best shot, and leaves the rest for review as alternates. */
+  async function takeBurst(trigger: 'shutter' | 'auto') {
+    if (busy.current) return;
+    busy.current = true;
+    setCapturing(true);
+    showFlash();
+    try {
+      const uris = await captureBurst(BURST_SIZE);
+      if (!uris.length) return;
+      setNotice(`Picking the best of ${uris.length}…`);
+      const [best, ...rest] = await rankBurst(uris);
+      const burst = String(Date.now());
+      for (const shot of rest) add(shot.uri, shot.analysis, { burst, alternate: true });
+      add(best.uri, best.analysis, { burst });
+      showNotice(
+        `${trigger === 'auto' ? 'Auto shot: kept' : 'Kept'} the best of ${uris.length}` +
+          (rest.length ? ` · ${rest.length} more in Review` : '')
+      );
+    } catch (e) {
+      setNotice(null);
+      Alert.alert('Burst failed', e instanceof Error ? e.message : String(e));
+    } finally {
+      busy.current = false;
+      setCapturing(false);
+    }
+  }
+
+  /** Counts perfect frames in a row and fires a burst once there are enough. */
+  function onFrame(frame: Analysis) {
+    perfectStreak.current = frame.shot?.perfect ? perfectStreak.current + 1 : 0;
+    const rested = Date.now() - lastAutoAt.current > AUTO_COOLDOWN_MS;
+    if (auto && !busy.current && rested && perfectStreak.current >= STEADY_FRAMES) {
+      perfectStreak.current = 0;
+      lastAutoAt.current = Date.now();
+      takeBurst('auto');
+    }
+  }
+
+  function flip() {
+    setReady(false);
+    setFacing((f) => (f === 'back' ? 'front' : 'back'));
+  }
+
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+  });
 
   if (!permission) return <View style={styles.fill} />;
 
@@ -49,28 +145,6 @@ export default function CameraScreen() {
         </Pressable>
       </SafeAreaView>
     );
-  }
-
-  async function takePhoto() {
-    if (capturing) return;
-    setCapturing(true);
-    // Remember what the coach saw at the moment of the press, not after the capture delay.
-    const seen = analysis;
-    flash.setValue(1);
-    Animated.timing(flash, { toValue: 0, duration: 250, useNativeDriver: true }).start();
-    try {
-      const photo = await capture();
-      if (photo) add(photo.uri, seen);
-    } catch (e) {
-      Alert.alert('Photo failed', e instanceof Error ? e.message : String(e));
-    } finally {
-      setCapturing(false);
-    }
-  }
-
-  function flip() {
-    setReady(false);
-    setFacing((f) => (f === 'back' ? 'front' : 'back'));
   }
 
   // The error can come from taking the snapshot as well as from the network, so show it.
@@ -126,11 +200,47 @@ export default function CameraScreen() {
               {analysis.ms} ms
             </Text>
           )}
+          {notice ? (
+            <View style={[styles.tip, styles.tipNotice]}>
+              <Text style={styles.tipText}>{notice}</Text>
+            </View>
+          ) : (
+            auto &&
+            analysis?.shot?.perfect &&
+            !capturing && (
+              <View style={[styles.tip, styles.tipGood]}>
+                <Text style={styles.tipText}>Perfect: hold still…</Text>
+              </View>
+            )
+          )}
           {voice.canSpeak && (
             <Pressable accessibilityLabel="Change coach voice" style={styles.pill} onPress={voice.next}>
               <Text style={styles.pillText}>{voice.persona ? `Voice: ${voice.persona.name}` : 'Voice off'}</Text>
             </Pressable>
           )}
+        </View>
+
+        <View style={styles.modes}>
+          <Pressable
+            accessibilityLabel="Take the photo automatically when it's perfect"
+            accessibilityState={{ selected: auto }}
+            style={[styles.pill, auto && styles.pillOn]}
+            onPress={() => setAuto((a) => !a)}>
+            <Text style={styles.pillText}>Auto {auto ? 'on' : 'off'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={`Burst: take ${BURST_SIZE} and keep the best`}
+            accessibilityState={{ selected: burstMode }}
+            style={[styles.pill, burstMode && styles.pillOn]}
+            onPress={() => setBurstMode((b) => !b)}>
+            <Text style={styles.pillText}>Burst {burstMode ? 'on' : 'off'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Find your best angles"
+            style={styles.pill}
+            onPress={() => router.push('/angles')}>
+            <Text style={styles.pillText}>Angles</Text>
+          </Pressable>
         </View>
 
         <View style={styles.controls}>
@@ -215,6 +325,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
+  },
+  modes: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  pillOn: {
+    backgroundColor: 'rgba(22,163,74,0.85)',
+  },
+  tipNotice: {
+    backgroundColor: 'rgba(37,99,235,0.8)',
   },
   controls: {
     flexDirection: 'row',

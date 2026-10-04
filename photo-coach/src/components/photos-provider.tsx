@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-import { deletePhoto, loadPhotos, markKept, storePhoto, type Photo } from '@/lib/photos';
+import { deletePhoto, loadPhotos, markKept, storePhoto, type BurstInfo, type Photo } from '@/lib/photos';
 import type { Analysis } from '@/lib/server';
 
 type PhotosContextValue = {
   /** Newest first. */
   photos: Photo[];
-  add: (uri: string, analysis: Analysis | null) => Photo;
+  add: (uri: string, analysis: Analysis | null, burstInfo?: BurstInfo) => Photo;
   remove: (id: string) => void;
   /** Marks a photo as kept in review. */
   keep: (id: string) => void;
@@ -17,8 +17,8 @@ const PhotosContext = createContext<PhotosContextValue | null>(null);
 export function PhotosProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Photo[]>(loadPhotos);
 
-  function add(uri: string, analysis: Analysis | null) {
-    const photo = storePhoto(uri, analysis);
+  function add(uri: string, analysis: Analysis | null, burstInfo?: BurstInfo) {
+    const photo = storePhoto(uri, analysis, burstInfo);
     setPhotos((list) => [photo, ...list]);
     return photo;
   }

@@ -1,15 +1,17 @@
 import time
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import angles
 import choices_db
 import personas
 import ranker
 import recognize
 import retrain
+import shots
 import vision
 
 # Camera frames are small and faces in them are big, so the detector can work at a small
@@ -31,7 +33,8 @@ def health():
 
 
 @app.post("/analyze")
-def analyze(image: UploadFile = File(...)):
+def analyze(image: UploadFile = File(...), person: Optional[str] = None):
+    """Measure a frame. `shot` judges it as a photo, with `person`'s taste model if they have one."""
     start = time.perf_counter()
     try:
         rgb = vision.decode_image(image.file.read())
@@ -39,6 +42,7 @@ def analyze(image: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(e))
     result = vision.analyze(rgb)
     add_names(rgb, result["faces"])
+    result["shot"] = shots.judge(result, shots.load_model(person))
     result["ms"] = round((time.perf_counter() - start) * 1000)
     return result
 
@@ -67,15 +71,18 @@ class Verdict(BaseModel):
     verdict: str
     # What /analyze said about the photo when it was taken, or None if it never got an answer.
     analysis: Optional[dict] = None
+    # "angle" for a frame liked or passed over in the angle finder: only its head angle is kept.
+    kind: Literal["photo", "angle"] = "photo"
 
 
 @app.post("/verdicts")
 def save_verdict(body: Verdict):
-    """Keep or remove from the app's photo review. Only the photo's features are stored."""
+    """Keep or remove from the app's photo review or angle finder. Only features are stored."""
     features = None
     if body.analysis is not None:
         try:
-            features = ranker.photo_features(body.analysis)
+            features = (angles.angle_features(body.analysis) if body.kind == "angle"
+                        else ranker.photo_features(body.analysis))
         except (KeyError, TypeError) as e:
             raise HTTPException(status_code=400, detail=f"analysis isn't a /analyze result: {e}")
     try:
@@ -83,6 +90,20 @@ def save_verdict(body: Verdict):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"saved": True, "measured": features is not None}
+
+
+class AngleFrames(BaseModel):
+    # {"id", "analysis"} for each frame the angle finder caught.
+    frames: list[dict]
+
+
+@app.post("/angles/cluster")
+def cluster_angles(body: AngleFrames):
+    """Group angle-finder frames by head angle and pick a typical frame from each group."""
+    try:
+        return angles.cluster(body.frames)
+    except (KeyError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"frames need an id and a /analyze result: {e}")
 
 
 @app.get("/model/{person}")
