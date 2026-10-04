@@ -2,8 +2,10 @@
 
 Run from server/:  streamlit run compare.py
 """
+import json
 import os
 import random
+from datetime import datetime, timezone
 from pathlib import Path
 
 import altair as alt
@@ -17,16 +19,21 @@ from ranker import CLEAR, LIKELY, MAX_CHOICES, MIN_CHOICES, RECENT_GUESSES, Rank
 
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_FOLDER = REPO / "data" / "training-recognition"
+WEIGHTS_FOLDER = Path(__file__).resolve().parent / "preferences" / "weights"
 PHOTO_TYPES = {".jpg", ".jpeg", ".png"}
+# Subfolder of held-back photos the weights are tested on, never compared.
+HELD_OUT = "testing_data"
 PREVIEW_WIDTH = 700
 SHOWN_PHOTOS = 5
 # How many priorities the results spell out in words.
 SHOWN_PRIORITIES = 3
 BAR_COLOUR = "#2a78d6"
+# The per-feature chart shows this many; the table under it lists them all.
+DETAIL_BARS = 20
 
 
 @st.cache_data(show_spinner=False)
-def analyze_photo(path: str):
+def analyze_photo(path: str, code_version: str):
     """A display-sized copy of the photo, its ranking features and its red flags."""
     rgb = vision.decode_image(Path(path).read_bytes())
     result = vision.analyze(rgb)
@@ -36,8 +43,13 @@ def analyze_photo(path: str):
 
 
 def photo_paths(folder: Path) -> list[Path]:
-    """Every photo in the folder, including subfolders such as like/ and dislike/."""
-    return sorted(p for p in folder.rglob("*") if p.suffix.lower() in PHOTO_TYPES)
+    """Every photo in the folder, including subfolders such as like/ and dislike/.
+
+    Photos in a testing_data/ folder are held back to check the learned weights on photos
+    they weren't trained on (see score.py), so they're never shown here.
+    """
+    return sorted(p for p in folder.rglob("*") if p.suffix.lower() in PHOTO_TYPES
+                  and HELD_OUT not in p.relative_to(folder).parts)
 
 
 def photo_id(path: Path) -> str:
@@ -99,7 +111,7 @@ progress = st.progress(0.0)
 previews, features, flags = {}, {}, {}
 for i, path in enumerate(paths):
     progress.progress(i / len(paths), f"Analysing {path.name} ({i + 1}/{len(paths)})")
-    previews[photo_id(path)], features[photo_id(path)], flags[photo_id(path)] = analyze_photo(str(path))
+    previews[photo_id(path)], features[photo_id(path)], flags[photo_id(path)] = analyze_photo(str(path), vision.code_version())
 progress.empty()
 
 # Photos whose measurements can't be trusted are left out, so they don't teach the ranker
@@ -121,7 +133,10 @@ if len(features) < 2:
     st.stop()
 
 
-choices = choices_db.load(name)
+# Picks about photos that have since been moved or deleted can't teach anything, and
+# counting them would end the comparing early.
+saved_choices = choices_db.load(name)
+choices = [c for c in saved_choices if c["winner"] in features and c["loser"] in features]
 pairs = [(c["winner"], c["loser"]) for c in choices]
 ranker = Ranker(features)
 ranker.fit(pairs)
@@ -135,6 +150,23 @@ with st.sidebar.popover("Start over", disabled=not choices):
     st.write(f"This deletes all {len(choices)} of {name}'s picks.")
     st.button("Delete my picks", type="primary", on_click=start_over, args=(name,))
 st.sidebar.caption(f"Saved to {choices_db.DB_PATH.relative_to(REPO).as_posix()}")
+if len(saved_choices) > len(choices):
+    st.sidebar.caption(f"{len(saved_choices) - len(choices)} older picks are about photos that aren't "
+                       "here any more, so they're ignored.")
+
+
+def save_weights(person: str, picks: int, confidence: float) -> Path:
+    """Write this person's learned weights, so the app can score new photos with them."""
+    WEIGHTS_FOLDER.mkdir(parents=True, exist_ok=True)
+    path = WEIGHTS_FOLDER / f"{choices_db.person_key(person)}.json"
+    path.write_text(json.dumps({
+        "person": person,
+        "updated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "picks": picks,
+        "confidence": round(confidence, 2),
+        **ranker.export(),
+    }, indent=1))
+    return path
 
 
 def show_comparison() -> None:
@@ -183,9 +215,9 @@ def show_results() -> None:
     }
     st.caption(f"Based on {count} picks" + (f": {why[stop]}." if stop else "."))
 
-    sure = ranker.confidence(pairs)
+    sure = ranker.region_confidence(pairs)
     if sure >= CLEAR:
-        st.success("**Clear pattern.** Your top priority holds up however your picks are reshuffled.")
+        st.success("**Clear pattern.** The area that matters most to you holds up however your picks are reshuffled.")
     elif sure >= LIKELY:
         st.info("**Likely pattern.** A few more picks would firm it up.")
     else:
@@ -193,20 +225,32 @@ def show_results() -> None:
                    "like lighting, outfit or background. Treat these as rough.")
 
     rows = pd.DataFrame(ranker.priorities())
-    rows["direction"] = rows["weight"].map(lambda w: "more" if w > 0 else "less")
-    rows["name"] = rows["label"] + " (" + rows["direction"] + ")"
+    saved = save_weights(name, count, sure)
+
+    st.subheader("What matters most, by area")
+    areas = pd.DataFrame([{"region": r, "share": v} for r, v in ranker.region_shares().items() if v > 0])
+    area_chart = alt.Chart(areas).mark_bar(color=BAR_COLOUR, cornerRadiusEnd=4, size=14).encode(
+        x=alt.X("share:Q", title="Share of how much your picks depend on it", axis=alt.Axis(format="%")),
+        y=alt.Y("region:N", sort="-x", title=None),
+        tooltip=[alt.Tooltip("region:N", title="Area"), alt.Tooltip("share:Q", title="Share", format=".0%")],
+    )
+    try:
+        st.altair_chart(area_chart, width="stretch")
+    except TypeError:
+        st.altair_chart(area_chart, use_container_width=True)
     same_everywhere = rows.loc[~rows["varies"], "label"].tolist()
     rows = rows[rows["varies"] & (rows["share"] > 0)]
 
     st.subheader("You tend to pick photos with…")
     for _, row in rows.head(SHOWN_PRIORITIES).iterrows():
-        st.markdown(f"- **{row['label']}**, {'more' if row['weight'] > 0 else 'less'} of it")
+        st.markdown(f"- **{row['prefers']}**")
 
-    chart = alt.Chart(rows).mark_bar(color=BAR_COLOUR, cornerRadiusEnd=4, size=14).encode(
+    st.subheader(f"Top {DETAIL_BARS} details")
+    chart = alt.Chart(rows.head(DETAIL_BARS)).mark_bar(color=BAR_COLOUR, cornerRadiusEnd=4, size=14).encode(
         x=alt.X("share:Q", title="Share of influence on your picks", axis=alt.Axis(format="%")),
-        y=alt.Y("name:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
+        y=alt.Y("prefers:N", sort="-x", title=None, axis=alt.Axis(labelLimit=320)),
         tooltip=[alt.Tooltip("label:N", title="Feature"),
-                 alt.Tooltip("direction:N", title="You prefer"),
+                 alt.Tooltip("prefers:N", title="You prefer"),
                  alt.Tooltip("share:Q", title="Share", format=".0%"),
                  alt.Tooltip("weight:Q", title="Weight", format=".2f")],
     )
@@ -219,10 +263,12 @@ def show_results() -> None:
         st.caption("Not ranked because they're the same in every photo here: "
                    + ", ".join(same_everywhere).lower())
     with st.expander("As a table"):
-        st.dataframe(rows[["label", "direction", "share", "weight"]], hide_index=True,
-                     column_config={"direction": "you prefer",
+        st.dataframe(rows[["region", "label", "prefers", "share", "weight"]], hide_index=True,
+                     column_config={"prefers": "you prefer",
                                     "share": st.column_config.NumberColumn(format="percent"),
                                     "weight": st.column_config.NumberColumn(format="%.2f")})
+
+    st.caption(f"Weights saved to {saved.relative_to(REPO).as_posix()}")
 
     scores = ranker.scores()
     ranked = sorted(scores, key=scores.get, reverse=True)
