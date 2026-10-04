@@ -13,3 +13,4 @@ pytest
 insightface
 onnxruntime
 pillow-heif
+certifi

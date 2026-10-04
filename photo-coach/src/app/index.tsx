@@ -9,7 +9,9 @@ import { FaceOverlay } from '@/components/face-overlay';
 import { usePhotos } from '@/components/photos-provider';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useFrameAnalysis } from '@/hooks/use-frame-analysis';
+import { useVoiceCoach } from '@/hooks/use-voice-coach';
 import { SERVER_URL } from '@/lib/server';
+import { GOOD_CLIP } from '@/lib/voice';
 
 const WIDE_LENS = 'builtInWideAngleCamera';
 
@@ -28,6 +30,9 @@ export default function CameraScreen() {
   const [flash] = useState(() => new Animated.Value(0));
 
   const { analysis, error, fps, capture } = useFrameAnalysis(cameraRef, ready && isFocused);
+  // The line for the tip on screen, or praise when there's nothing to fix.
+  const clip = !isFocused || error || !analysis ? null : (analysis.warnings[0]?.clip ?? GOOD_CLIP);
+  const voice = useVoiceCoach(clip);
 
   // iOS reports lens names like "Back Ultra Wide Camera"; only the back camera has one.
   const ultraWideLens = lenses.find((l) => /ultra\s*wide/i.test(l));
@@ -110,11 +115,17 @@ export default function CameraScreen() {
               </View>
             )
           )}
+          {error && <Text style={styles.stats}>{error}</Text>}
           {analysis && !error && (
             <Text style={styles.stats}>
               {analysis.faces.length} face{analysis.faces.length === 1 ? '' : 's'} · {fps.toFixed(1)} fps ·{' '}
               {analysis.ms} ms
             </Text>
+          )}
+          {voice.canSpeak && (
+            <Pressable accessibilityLabel="Change coach voice" style={styles.pill} onPress={voice.next}>
+              <Text style={styles.pillText}>{voice.persona ? `Voice: ${voice.persona.name}` : 'Voice off'}</Text>
+            </Pressable>
           )}
         </View>
 

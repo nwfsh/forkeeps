@@ -484,29 +484,32 @@ def red_flags(faces: list[dict], people: list[dict]) -> list[str]:
 
 
 def framing_warnings(faces: list[dict], people: list[dict]) -> list[dict]:
-    """Basic framing checks, most important first. The personalised ranking replaces this later."""
+    """Basic framing checks, most important first. The personalised ranking replaces this later.
+
+    Each warning's clip names the line the coach's voices say for it (see personas.CLIPS).
+    """
     if not faces and not people:
-        return [{"code": "no_person", "message": "I can't see anyone"}]
+        return [{"code": "no_person", "clip": "no_person", "message": "I can't see anyone"}]
 
     warnings = []
     cut = [f for f in faces if f["cut_off"]]
     if cut:
         side = edge_side(cut[0]["bbox"])
         who = "Someone is" if len(faces) > 1 else "You're"
-        warnings.append({"code": "cut_off", "message": f"{who} cut off on the {side}"})
+        warnings.append({"code": "cut_off", "clip": f"cut_off_{side}", "message": f"{who} cut off on the {side}"})
 
     if len(people) == 1:
         person = people[0]
         if person["cut_at_joint"]:
-            warnings.append({"code": "cut_at_joint",
+            warnings.append({"code": "cut_at_joint", "clip": f"cut_at_joint_{person['cut_at_joint']}",
                              "message": f"The frame cuts right at your {person['cut_at_joint']}"})
         if person.get("looking_room", 1) < LOOKING_ROOM:
-            warnings.append({"code": "looking_room",
+            warnings.append({"code": "looking_room", "clip": f"looking_room_{person['facing']}",
                              "message": f"Leave more space on the {person['facing']}, where you're looking"})
 
     # No "move closer": waist-up and full-body shots are deliberate, so a small face isn't a mistake.
     if len(faces) == 1 and faces[0]["bbox"]["h"] > TOO_CLOSE:
-        warnings.append({"code": "too_close", "message": "Step back a little"})
+        warnings.append({"code": "too_close", "clip": "too_close", "message": "Step back a little"})
     return warnings
 
 

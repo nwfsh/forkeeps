@@ -224,3 +224,6 @@ __marimo__/
 
 # Training photos stay out of git
 /data
+
+# Recorded coach voices; make them with server/generate_voices.py
+/server/voices/
