@@ -1,0 +1,87 @@
+{
+ "person": "mark",
+ "updated": "2026-10-04T16:39:22+00:00",
+ "picks": 30,
+ "confidence": 0.98,
+ "source": "review",
+ "regions": {
+  "Eyes": 0.05588688292746606,
+  "Mouth": 0.37397274015069043,
+  "Head angle": 0.5701403769218434,
+  "Photo quality": 0.0,
+  "Framing": 0.0,
+  "Body angle": 0.0,
+  "Posture": 0.0,
+  "Lighting": 0.0,
+  "Makeup and colour": 0.0,
+  "Face shape": 0.0,
+  "Skin": 0.0,
+  "Hands": 0.0,
+  "Overall": 0.0,
+  "Brows": 0.0,
+  "Cheeks": 0.0,
+  "Jaw": 0.0,
+  "Nose": 0.0
+ },
+ "ideal_angles": {
+  "chin_up": null,
+  "left_side": null
+ },
+ "priorities": [
+  {
+   "feature": "chin_up",
+   "region": "Head angle",
+   "prefers": "Chin up",
+   "share": 0.5514425867636211,
+   "weight": 0.979502846820994
+  },
+  {
+   "feature": "smile",
+   "region": "Mouth",
+   "prefers": "Smiling, less of it",
+   "share": 0.33907132807369667,
+   "weight": -0.602277261668814
+  },
+  {
+   "feature": "left_side",
+   "region": "Head angle",
+   "prefers": "Your right side toward the camera",
+   "share": 0.05881490627279989,
+   "weight": -0.10447029212564607
+  },
+  {
+   "feature": "eye_contact",
+   "region": "Eyes",
+   "prefers": "Looking at the camera, less of it",
+   "share": 0.05067117888988234,
+   "weight": -0.09000495276526561
+  }
+ ],
+ "weights": {
+  "eye_contact": -0.09000495276526561,
+  "smile": -0.602277261668814,
+  "teeth_shown": 0.0,
+  "chin_up": 0.979502846820994,
+  "left_side": -0.10447029212564607,
+  "chin_up_curve": 0.0,
+  "left_side_curve": 0.0
+ },
+ "mean": {
+  "eye_contact": 0.4303636363636363,
+  "smile": 0.005181818181818182,
+  "teeth_shown": 0.0,
+  "chin_up": 0.13303030303030305,
+  "left_side": -0.044949494949494954,
+  "chin_up_curve": 0.0,
+  "left_side_curve": 0.0
+ },
+ "std": {
+  "eye_contact": 0.10939442625594674,
+  "smile": 0.003950101996800078,
+  "teeth_shown": 1.0,
+  "chin_up": 0.05251281904122811,
+  "left_side": 0.03404744704288034,
+  "chin_up_curve": 1.0,
+  "left_side_curve": 1.0
+ }
+}
