@@ -16,6 +16,12 @@ const HOLD_MS = 1000;
 const MIN_GAP_MS = 2500;
 /** An unfixed tip is said again after this long. */
 const REPEAT_MS = 12000;
+/**
+ * Lines said once and not repeated while they still apply: praise, and makeup reminders (makeup
+ * doesn't change by the second, so saying it again is nagging). Said again only after another
+ * line has been spoken in between, e.g. once the lips are fixed and then fade again.
+ */
+const SAY_ONCE = new Set([GOOD_CLIP, 'reapply_lips', 'reapply_blush']);
 const CHECK_MS = 250;
 /** A line that hasn't loaded after this long is dropped. */
 const LOAD_MS = 3000;
@@ -119,7 +125,7 @@ export function useVoiceCoach(
       }
       const last = spoken.current;
       if (now - since < HOLD_MS || now - last.at < MIN_GAP_MS || player.playing) return;
-      if (last.key === key && (clip === GOOD_CLIP || now - last.at < REPEAT_MS)) return;
+      if (last.key === key && (SAY_ONCE.has(clip) || now - last.at < REPEAT_MS)) return;
       const uri = local.current.get(key);
       if (!uri) return;
       spoken.current = { key, at: now };

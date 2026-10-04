@@ -78,12 +78,17 @@ export default function CameraScreen() {
   const redFlag = analysis ? mainRedFlag(analysis) : null;
   // Red flags are spoken by their own line; one a voice has no line for stays quiet
   // (useVoiceCoach skips clips it doesn't have), rather than saying "looks good".
+  // The shot is good enough to take (the server's "perfect": no problems and a high score).
+  const goodEnough = !!analysis?.shot?.perfect;
   const clip =
     !isFocused || error || !analysis
       ? null
       : redFlag
         ? redFlag.clip
-        : (makeup.tip?.clip ?? analysis.warnings[0]?.clip ?? instruction?.clip ?? GOOD_CLIP);
+        : (makeup.tip?.clip ??
+          analysis.warnings[0]?.clip ??
+          // Good enough to take: praise it, rather than a small taste tweak.
+          (goodEnough ? GOOD_CLIP : (instruction?.clip ?? GOOD_CLIP)));
   const inGroup = analysis?.subject === 'found';
   const voice = useVoiceCoach(clip, inGroup && !named ? nameClip() : null, onNameSaid);
 
@@ -195,7 +200,11 @@ export default function CameraScreen() {
     ? `Can't reach ${SERVER_URL} (${error})`
     : redFlag
       ? redFlagMessage(redFlag.flag, analysis?.subject)
-      : forThem(makeup.tip?.message ?? analysis?.warnings[0]?.message ?? instruction?.message);
+      : forThem(
+          makeup.tip?.message ??
+            analysis?.warnings[0]?.message ??
+            (goodEnough ? undefined : instruction?.message),
+        );
 
   return (
     <View style={styles.fill} onLayout={(e) => setLayout(e.nativeEvent.layout)}>
